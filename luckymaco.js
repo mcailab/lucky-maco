@@ -821,7 +821,11 @@
   }
   /* count = how many Macoji fall; empty = whether the hopper drains with them.
      Jackpot dumps the lot, a pair just spills a few. */
-  function dump(count, empty) {
+  /* `faces` is the list of Macoji to drop — one entry each, no repeats. It used
+     to be a count, with each drop picking at random WITH replacement, so the same
+     face turned up several times in one pile. */
+  function dump(faces, empty) {
+    var count = faces.length;
     var box = $('.window').getBoundingClientRect();
     var H = box.height, W = box.width;
     clearDrops();                                // any dump still in flight
@@ -835,7 +839,7 @@
     for (var i = 0; i < spots.length; i++) {
       (function (i) {
         var spot = spots[i];
-        var iconName = POOL[Math.floor(Math.random() * POOL.length)];
+        var iconName = faces[i];
         var el = document.createElement('img');
         el.className = 'drop';
         el.src = ICON(iconName);
@@ -1034,7 +1038,7 @@
        it takes to fill the window. */
     $('.window').classList.add('emptied');       // the reels fall too
     sJack(); sFall(); hJack();
-    dump(hstock.children.length + ROWS * 3, true);
+    dump(distinct(POOL.length), true);           // the whole set, one of each
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 
