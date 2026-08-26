@@ -44,7 +44,8 @@
     mode:     'widget',         // 'widget' = floating button | 'page' = always open, no button
     position: 'bottom-right',   // or bottom-left
     shake:    true,             // shake-to-pull on mobile
-    shakeForce: 26,             // shake sensitivity, m/s2 (lower = twitchier)
+    shakeForce: 17,             // shake sensitivity, m/s2. Rest is ~9.8, so this
+                                // is a firm flick. Range 8-60.
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -879,28 +880,53 @@
     spin(force);
   }
 
-  /* ── shake to pull (mobile) ───────────────────────────────────────────── */
-  var lastShake = 0;
+  /* ── shake to pull (mobile) ───────────────────────────────────────────────
+     Three separate things can stop this working — no sensor, permission not
+     granted, or shaking too gently — and they look identical from the outside.
+     So we track which one it is and surface it in the settings sheet. */
+  var lastShake = 0, listening = false, peakMag = 0, motionSeen = false;
+  var shakeState =
+      typeof DeviceMotionEvent === 'undefined' ? 'unsupported'
+    : typeof DeviceMotionEvent.requestPermission === 'function' ? 'ask'
+    : 'ready';
+
   function onMotion(e) {
     var a = e.accelerationIncludingGravity;
     if (!a) return;
+    motionSeen = true;
     var mag = Math.sqrt((a.x || 0) * (a.x || 0) + (a.y || 0) * (a.y || 0) + (a.z || 0) * (a.z || 0));
+    if (mag > peakMag) peakMag = mag;
     var now = Date.now();
     if (mag > CFG.shakeForce && now - lastShake > 1200 && scrim.classList.contains('on')) {
       lastShake = now; yank();
     }
   }
-  function enableShake() {
-    if (!CFG.shake || typeof DeviceMotionEvent === 'undefined') return;
-    // iOS 13+ requires a user gesture — opening the panel is that gesture.
-    if (typeof DeviceMotionEvent.requestPermission === 'function') {
-      DeviceMotionEvent.requestPermission().then(function (s) {
-        if (s === 'granted') window.addEventListener('devicemotion', onMotion);
-      })['catch'](function () { /* denied — the lever still works */ });
-    } else {
-      window.addEventListener('devicemotion', onMotion);
-    }
+  function listen() {
+    if (listening) return;
+    listening = true;
+    window.addEventListener('devicemotion', onMotion);
   }
+  /* Must be called straight out of a real tap — iOS rejects it otherwise. */
+  function enableShake(done) {
+    if (!CFG.shake) { shakeState = 'off'; if (done) done(); return; }
+    if (shakeState === 'unsupported') { if (done) done(); return; }
+    if (shakeState === 'ready' || shakeState === 'granted') {
+      shakeState = 'granted'; listen(); if (done) done(); return;
+    }
+    DeviceMotionEvent.requestPermission().then(function (r) {
+      shakeState = r === 'granted' ? 'granted' : 'denied';
+      if (r === 'granted') listen();
+      if (done) done();
+    })['catch'](function () { shakeState = 'denied'; if (done) done(); });
+  }
+  var SHAKE_LABEL = {
+    unsupported: 'Not supported on this device',
+    off:         'Turned off',
+    ask:         'Tap Enable below',
+    denied:      'Blocked \u2014 see below',
+    ready:       'On',
+    granted:     'On'
+  };
 
   /* ── open / close ─────────────────────────────────────────────────────── */
   var shakeAsked = false;
@@ -923,7 +949,7 @@
 
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
-  var sheet = $('.sheet');
+  var sheet = $('.sheet'), sheetTick = null;
   var SHOWN = ['triple', 'pair', 'rows', 'position', 'shake', 'shakeForce', 'set', 'mode'];
 
   function embedCode() {
@@ -957,8 +983,19 @@
         '<tr><td>Theme</td><td>' + host.getAttribute('data-theme') +
           (CFG.theme === 'auto' ? ' (auto)' : '') + '</td></tr>' +
         '<tr><td>Sound</td><td>' + (sound ? 'On' : 'Off') + '</td></tr>' +
-        '<tr><td>Shake to pull</td><td>' + (CFG.shake ? 'On' : 'Off') + '</td></tr>' +
+        '<tr><td>Shake to pull</td><td>' + SHAKE_LABEL[shakeState] + '</td></tr>' +
+        '<tr><td>Shake needed</td><td>' + CFG.shakeForce + ' &nbsp;/&nbsp; ' +
+          '<span class="peak">' + (motionSeen ? peakMag.toFixed(1) : '\u2013') +
+          '</span> so far</td></tr>' +
       '</table>' +
+      (shakeState === 'ask' || shakeState === 'denied'
+        ? '<div class="row" style="margin-bottom:14px">' +
+          '<button class="shakebtn primary">Enable shake</button></div>' +
+          (shakeState === 'denied'
+            ? '<p style="margin:-6px 0 14px;font-size:11.5px;color:var(--mut)">' +
+              'If nothing happens, iOS has remembered a refusal. Settings &rarr; Apps &rarr; ' +
+              'Safari &rarr; Motion &amp; Orientation Access, then reload.</p>' : '')
+        : '') +
       '<h3>Add to your page</h3>' +
       '<pre>' + esc(embedCode()) + '</pre>' +
       '<div class="row"><button class="copy">Copy code</button>' +
@@ -976,6 +1013,21 @@
     sheet.querySelector('.done').addEventListener('click', function (e) {
       e.stopPropagation(); sheet.classList.remove('on');
     });
+    var sb = sheet.querySelector('.shakebtn');
+    if (sb) sb.addEventListener('click', function (e) {
+      e.stopPropagation();
+      peakMag = 0;
+      enableShake(function () { buildSheet(); });   // redraw with the verdict
+    });
+    /* Live peak while the sheet is open: if this number moves, motion events are
+       arriving and it is purely a matter of shaking harder. If it never moves,
+       the problem is permission, not strength. */
+    if (sheetTick) clearInterval(sheetTick);
+    sheetTick = setInterval(function () {
+      var el = sheet.querySelector('.peak');
+      if (!el || !sheet.classList.contains('on')) { clearInterval(sheetTick); sheetTick = null; return; }
+      el.textContent = motionSeen ? peakMag.toFixed(1) : '\u2013';
+    }, 200);
   }
 
   var cog = $('.cog');
