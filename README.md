@@ -24,6 +24,7 @@ All optional, set as `data-*` on the script tag.
 | `data-pair` | `0.22` | Odds of exactly 2 identical, any position |
 | `data-near-miss` | `0.60` | Share of pairs with the odd one on reel 3, so reel 3 crawls. Presentation only — pays the same either way. |
 | `data-rows` | `3` | Visible rows per reel: 1, 3 or 5. Only the centre row pays. |
+| `data-spin-speed` | `1` | Multiplies every reel duration. `1.5` = half again as long, `0.7` = snappier. Range 0.4–2.5. |
 | `data-mode` | `widget` | `widget` = floating button, `page` = always open |
 | `data-theme` | `auto` | `auto` / `light` / `dark` |
 | `data-position` | `bottom-right` | Or `bottom-left` |

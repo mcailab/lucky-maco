@@ -41,6 +41,8 @@
     haptics:  true,             // vibration on pull, wins and shake (Android; iOS Safari
                                 // support is unreliable, so it self-detects)
     sound:    true,             // lever clunk, reel stops, win chimes (WebAudio, no files)
+    spinSpeed: 1,              // multiplies every reel duration. 1.5 = half again as
+                                // long, 0.7 = snappier. Range 0.4-2.5.
     rows:     3,                // visible rows per reel: 1, 3 or 5. Only the centre row pays.
     theme:    'auto',           // 'auto' follows the host page / OS | 'light' | 'dark'
     mode:     'widget',         // 'widget' = floating button | 'page' = always open, no button
@@ -56,7 +58,7 @@
 
   var NUM = { triple: 1, pair: 1, nearMiss: 1 };
   var BOOL = { shake: 1, sound: 1, test: 1, haptics: 1 };
-  var RANGE = { shakeForce: [8, 60] };
+  var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5] };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -793,15 +795,16 @@
     lever.classList.add('busy');
     sClunk(); hPull();
     var res = draw(force);
-    stopSpinSound();
-    sSpin(res.tease ? 4200 : 2900);
     msg.className = 'msg';
     msg.innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
 
-    /* Longer, and weighted so the slowdown is actually visible. The old curve
-       covered 66% of the travel in the first 20% of time, so the remaining 70%
-       of the spin was an imperceptible crawl that read as "stopped". */
-    var dur = [1500, 2100, res.tease ? 4200 : 2900];   // reel 3 crawls on a near-miss
+    /* Weighted so the slowdown is visible, and spaced so each reel landing is its
+       own beat: ~1s between stop 1 and 2, ~1.1s between 2 and 3. Bunched-up stops
+       read as one event rather than three. */
+    var dur = [1600, 2650, res.tease ? 5000 : 3700];   // reel 3 crawls on a near-miss
+    for (var d = 0; d < 3; d++) dur[d] = Math.round(dur[d] * CFG.spinSpeed);
+    stopSpinSound();
+    sSpin(dur[2]);
     var CELL = cellPx(), done = 0;
     strips.forEach(function (strip, i) {
       strip.style.transition = 'none';
@@ -1042,7 +1045,7 @@
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
-  var SHOWN = ['triple', 'pair', 'rows', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
+  var SHOWN = ['triple', 'pair', 'rows', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
 
   function embedCode() {
     var lines = ['<script src="' + EMBED_SRC + '"'];
@@ -1072,6 +1075,9 @@
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
         '<tr><td>Rows</td><td>' + CFG.rows + '</td></tr>' +
+        '<tr><td>Reel stops at</td><td>' +
+          [1.6, 2.65, 3.7].map(function (v) { return (v * CFG.spinSpeed).toFixed(1); }).join('s / ') +
+          's</td></tr>' +
         '<tr><td>Theme</td><td>' + host.getAttribute('data-theme') +
           (CFG.theme === 'auto' ? ' (auto)' : '') + '</td></tr>' +
         '<tr><td>Sound</td><td>' + (sound ? 'On' : 'Off') + '</td></tr>' +
