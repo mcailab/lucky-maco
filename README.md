@@ -29,7 +29,7 @@ All optional, set as `data-*` on the script tag.
 | `data-position` | `bottom-right` | Or `bottom-left` |
 | `data-sound` | `true` | Lever clunk, reel stops, win chimes (WebAudio, no files) |
 | `data-shake` | `true` | Shake-to-pull on mobile (needs HTTPS) |
-| `data-shake-force` | `17` | Sensitivity, 8–60. Rest is ~9.8, so this is a firm flick. |
+| `data-shake-force` | `18` | How hard a shake must be, 8–60. Measured as *change* in acceleration, so a still phone reads ~0. Higher = less sensitive. Tunable live from the ⚙️ sheet. |
 | `data-haptics` | `true` | Vibration on pull, wins and shake. Android reliable; iOS Safari support is unreliable, so it self-detects. |
 | `data-set` | — | Restrict the pool, e.g. `fire,joy,wink,grin` |
 

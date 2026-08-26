@@ -46,8 +46,8 @@
     mode:     'widget',         // 'widget' = floating button | 'page' = always open, no button
     position: 'bottom-right',   // or bottom-left
     shake:    true,             // shake-to-pull on mobile
-    shakeForce: 17,             // shake sensitivity, m/s2. Rest is ~9.8, so this
-                                // is a firm flick. Range 8-60.
+    shakeForce: 18,             // how hard a shake must be. Measured as CHANGE in
+                                // acceleration, so a still phone reads ~0. Range 8-60.
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -377,6 +377,10 @@
     'background:var(--reel);color:var(--txt);font:700 11px/1 inherit;cursor:pointer;',
     'letter-spacing:.06em;text-transform:uppercase}',
     '.sheet button.primary{background:var(--gold-lit);color:#fff;border-color:transparent}',
+    '.sheet td.stepcell{white-space:nowrap}',
+    '.sheet button.step{flex:none;width:30px;padding:5px 0;margin:0 7px;border-radius:8px;',
+    'font-size:15px;line-height:1;vertical-align:middle}',
+    '.sheet .force{display:inline-block;min-width:24px;text-align:center;vertical-align:middle}',
     '.sheet button:hover{filter:brightness(1.08)}',
 
     /* lever — right-hand side, pull down, springs back */
@@ -498,6 +502,11 @@
   var STORE = 'luckymaco:theme';
   function remembered() { try { return localStorage.getItem(STORE); } catch (e) { return null; } }
   function remember(v) { try { localStorage.setItem(STORE, v); } catch (e) {} }
+
+  try {
+    var savedForce = parseFloat(localStorage.getItem('luckymaco:force'));
+    if (savedForce >= 8 && savedForce <= 60) CFG.shakeForce = savedForce;
+  } catch (e) {}
 
   var saved = remembered();
   if (!THEME_PINNED && (saved === 'light' || saved === 'dark')) CFG.theme = saved;
@@ -910,14 +919,23 @@
     : typeof DeviceMotionEvent.requestPermission === 'function' ? 'ask'
     : 'ready';
 
+  /* Absolute magnitude was the wrong signal: accelerationIncludingGravity reads
+     ~9.8 on a phone lying still, so the threshold had to clear gravity before it
+     measured anything, and simply carrying the phone could cross it. We track the
+     CHANGE between readings instead — a still phone reads ~0 whatever its
+     orientation, and only real movement registers. */
+  var lastMag = null;
   function onMotion(e) {
     var a = e.accelerationIncludingGravity;
     if (!a) return;
     motionSeen = true;
     var mag = Math.sqrt((a.x || 0) * (a.x || 0) + (a.y || 0) * (a.y || 0) + (a.z || 0) * (a.z || 0));
-    if (mag > peakMag) peakMag = mag;
+    if (lastMag === null) { lastMag = mag; return; }
+    var delta = Math.abs(mag - lastMag);
+    lastMag = mag;
+    if (delta > peakMag) peakMag = delta;
     var now = Date.now();
-    if (mag > CFG.shakeForce && now - lastShake > 1200 && scrim.classList.contains('on')) {
+    if (delta > CFG.shakeForce && now - lastShake > 1200 && scrim.classList.contains('on')) {
       lastShake = now; hShake(); yank();
     }
   }
@@ -1008,9 +1026,14 @@
           : !canBuzz ? 'Not supported here'
           : buzzWorked === false ? 'Blocked by browser'
           : buzzWorked === true ? 'Working' : 'Ready') + '</td></tr>' +
-        '<tr><td>Shake needed</td><td>' + CFG.shakeForce + ' &nbsp;/&nbsp; ' +
+        '<tr><td>Shake needed<br><span style="opacity:.7;font-size:11px">' +
+          'higher = less sensitive</span></td><td class="stepcell">' +
+          '<button class="step" data-d="-3">&minus;</button>' +
+          '<b class="force">' + CFG.shakeForce + '</b>' +
+          '<button class="step" data-d="3">+</button><br>' +
+          '<span style="font-weight:400;opacity:.7;font-size:11px">peak ' +
           '<span class="peak">' + (motionSeen ? peakMag.toFixed(1) : '\u2013') +
-          '</span> so far</td></tr>' +
+          '</span></span></td></tr>' +
       '</table>' +
       (shakeState === 'ask' || shakeState === 'denied'
         ? '<div class="row" style="margin-bottom:14px">' +
@@ -1036,6 +1059,16 @@
     });
     sheet.querySelector('.done').addEventListener('click', function (e) {
       e.stopPropagation(); sheet.classList.remove('on');
+    });
+    sheet.querySelectorAll('.step').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var v = Math.max(8, Math.min(60, CFG.shakeForce + parseInt(b.dataset.d, 10)));
+        CFG.shakeForce = v;
+        try { localStorage.setItem('luckymaco:force', String(v)); } catch (err) {}
+        sheet.querySelector('.force').textContent = v;
+        peakMag = 0;
+      });
     });
     var sb = sheet.querySelector('.shakebtn');
     if (sb) sb.addEventListener('click', function (e) {
