@@ -14,7 +14,9 @@
     :root{ --bg:#0E1430; --dim:rgba(255,255,255,.38); --line:rgba(255,255,255,.12) }
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  /* Shaking the phone can trigger Safari's pull-to-refresh and reload the game
+     mid-spin. Lock the overscroll. */
+  html,body{height:100%;overscroll-behavior:none;touch-action:manipulation}
   body{margin:0;background:var(--bg);
     font:500 15px/1.5 ui-rounded,-apple-system,"Segoe UI",system-ui,sans-serif}
   /* The machine is the page — it renders centred, fixed. This is just the floor. */

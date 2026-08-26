@@ -29,7 +29,8 @@ All optional, set as `data-*` on the script tag.
 | `data-position` | `bottom-right` | Or `bottom-left` |
 | `data-sound` | `true` | Lever clunk, reel stops, win chimes (WebAudio, no files) |
 | `data-shake` | `true` | Shake-to-pull on mobile (needs HTTPS) |
-| `data-shake-force` | `26` | Sensitivity, 8–60. Lower is twitchier. |
+| `data-shake-force` | `17` | Sensitivity, 8–60. Rest is ~9.8, so this is a firm flick. |
+| `data-haptics` | `true` | Vibration on pull, wins and shake. Android reliable; iOS Safari support is unreliable, so it self-detects. |
 | `data-set` | — | Restrict the pool, e.g. `fire,joy,wink,grin` |
 
 Also `window.LuckyMacoConfig = {...}` before the script, or `LuckyMaco.configure({...})`

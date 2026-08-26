@@ -38,6 +38,8 @@
                                 // reel 3 crawls, i.e. how often you get suspense.
     test:     false,            // force the outcome panel open. Normally you unlock it
                                 // by tapping the Master Concept mark 5x — see below.
+    haptics:  true,             // vibration on pull, wins and shake (Android; iOS Safari
+                                // support is unreliable, so it self-detects)
     sound:    true,             // lever clunk, reel stops, win chimes (WebAudio, no files)
     rows:     3,                // visible rows per reel: 1, 3 or 5. Only the centre row pays.
     theme:    'auto',           // 'auto' follows the host page / OS | 'light' | 'dark'
@@ -53,7 +55,7 @@
   for (var _k in CFG) DEFAULTS[_k] = CFG[_k];
 
   var NUM = { triple: 1, pair: 1, nearMiss: 1 };
-  var BOOL = { shake: 1, sound: 1, test: 1 };
+  var BOOL = { shake: 1, sound: 1, test: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60] };
   var ENUM  = { rows: [1, 3, 5] };
 
@@ -534,6 +536,24 @@
   }
   strips.forEach(function (s) { s.innerHTML = cells(STRIP); });
 
+  /* ── haptics ──────────────────────────────────────────────────────────────
+     navigator.vibrate is solid on Android and unreliable on iOS Safari, so every
+     call is guarded and the settings sheet reports what this device actually did.
+     A pattern is [buzz, pause, buzz, ...] in milliseconds. */
+  var canBuzz = typeof navigator !== 'undefined' &&
+                typeof navigator.vibrate === 'function';
+  var buzzWorked = null;                        // null = not tried yet
+  function buzz(pattern) {
+    if (!CFG.haptics || !canBuzz) return;
+    try { buzzWorked = navigator.vibrate(pattern) !== false; }
+    catch (e) { buzzWorked = false; }
+  }
+  var hPull  = function () { buzz(14); };                        // lever released
+  var hStop  = function () { buzz(9); };                         // a reel lands
+  var hShake = function () { buzz(28); };                        // shake registered
+  var hPair  = function () { buzz([30, 45, 30]); };
+  var hJack  = function () { buzz([70, 45, 70, 45, 70, 45, 90, 60, 320]); };  // long finish
+
   /* ── sound ────────────────────────────────────────────────────────────────
      Synthesised with WebAudio — no files, nothing to load, ~1KB of code. The
      context is created lazily on the first pull, which is a user gesture, so
@@ -714,7 +734,7 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
-    sClunk();
+    sClunk(); hPull();
     var res = draw(force);
     msg.className = 'msg';
     msg.innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
@@ -728,7 +748,7 @@
       void strip.offsetHeight;                          // force reflow
       strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.16,.68,.2,1)';
       strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
-      setTimeout(function () { sStop(); if (++done === 3) settle(res); }, dur[i] + 60);
+      setTimeout(function () { sStop(); hStop(); if (++done === 3) settle(res); }, dur[i] + 60);
     });
   }
 
@@ -810,7 +830,7 @@
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
     pulse([0, 1, 2], 'won');
-    sJack(); sCascade(); dump(34, true);
+    sJack(); sCascade(); hJack(); dump(34, true);
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 
@@ -820,7 +840,7 @@
     var band = $('.band');
     restart(band, 'lit');
     pulse(matchedIndexes(res.reels), 'pairwin');
-    sWin();
+    sWin(); hPair();
     setTimeout(function () { band.classList.remove('lit'); }, 1500);
   }
 
@@ -898,7 +918,7 @@
     if (mag > peakMag) peakMag = mag;
     var now = Date.now();
     if (mag > CFG.shakeForce && now - lastShake > 1200 && scrim.classList.contains('on')) {
-      lastShake = now; yank();
+      lastShake = now; hShake(); yank();
     }
   }
   function listen() {
@@ -950,7 +970,7 @@
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
-  var SHOWN = ['triple', 'pair', 'rows', 'position', 'shake', 'shakeForce', 'set', 'mode'];
+  var SHOWN = ['triple', 'pair', 'rows', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
 
   function embedCode() {
     var lines = ['<script src="' + EMBED_SRC + '"'];
@@ -984,6 +1004,10 @@
           (CFG.theme === 'auto' ? ' (auto)' : '') + '</td></tr>' +
         '<tr><td>Sound</td><td>' + (sound ? 'On' : 'Off') + '</td></tr>' +
         '<tr><td>Shake to pull</td><td>' + SHAKE_LABEL[shakeState] + '</td></tr>' +
+        '<tr><td>Vibration</td><td>' + (!CFG.haptics ? 'Turned off'
+          : !canBuzz ? 'Not supported here'
+          : buzzWorked === false ? 'Blocked by browser'
+          : buzzWorked === true ? 'Working' : 'Ready') + '</td></tr>' +
         '<tr><td>Shake needed</td><td>' + CFG.shakeForce + ' &nbsp;/&nbsp; ' +
           '<span class="peak">' + (motionSeen ? peakMag.toFixed(1) : '\u2013') +
           '</span> so far</td></tr>' +
