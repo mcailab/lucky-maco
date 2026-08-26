@@ -192,6 +192,10 @@
   var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
   var LEFT = CFG.position === 'bottom-left';
   var PAGE = CFG.mode === 'page';
+  /* A touch device. Motion events alone are not enough — desktop Chrome fires
+     devicemotion on Macs, which have a real motion sensor, so a laptop would be
+     told to shake itself. */
+  var COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
   var ROWS = CFG.rows, CENTRE = (ROWS - 1) / 2;
   /* Only the centre row pays. The rows above and below are decoration, faded
      out at the edges so the reel reads as a continuous strip behind a window. */
@@ -330,12 +334,12 @@
     /* The floor: two plates that slide apart, revealing the slot they were
        covering. A hinge reads as nothing at 5px tall — it is edge-on almost
        immediately. A widening gap is unmistakable. */
-    '.hgap{position:absolute;left:10px;right:10px;bottom:-1px;height:6px;',
-    'border-radius:3px;background:var(--cab);box-shadow:inset 0 2px 4px rgba(0,0,0,.55);',
+    '.hgap{position:absolute;left:10px;right:10px;bottom:0;height:3px;',
+    'border-radius:2px;background:var(--cab);box-shadow:inset 0 1px 3px rgba(0,0,0,.6);',
     'opacity:0;transition:opacity .2s}',
     '.hopper.open .hgap{opacity:1}',
-    '.flap{position:absolute;bottom:-1px;width:calc(50% - 9px);height:6px;',
-    'border-radius:3px;background:var(--gold-lit);z-index:2;',
+    '.flap{position:absolute;bottom:0;width:calc(50% - 9px);height:3px;',
+    'border-radius:2px;background:var(--gold-lit);z-index:2;',
     'transition:transform .5s cubic-bezier(.45,0,.25,1),opacity .5s}',
     '.flap.l{left:9px}',
     '.flap.r{right:9px}',
@@ -690,16 +694,15 @@
      machine has something to give you. Laid out once with random rotations and
      depths; it's static markup afterwards, so it costs nothing to keep on screen. */
   var hopper = $('.hopper'), hstock = $('.hstock'), dumpBox = $('.dump');
-  /* The face sits in the lower half of each sprite, so pushing them far below the
-     tray hid exactly the part worth seeing. Sit them almost flush, smaller, with
-     less tilt, and few enough that they do not bury each other. */
+  /* They rest ON the floor plate, not through it — bottom is measured from the
+     plate's top edge, so no sprite is ever clipped and every face is clear. */
   function fillHopper() {
     var n = 9, h = '';
     for (var i = 0; i < n; i++) {
       var m = POOL[Math.floor(Math.random() * POOL.length)];
       h += '<img src="' + ICON(m) + '" alt="" style="left:' +
            (i / n * 102 - 2 + (Math.random() - 0.5) * 3).toFixed(1) + '%;bottom:' +
-           (-1 - Math.random() * 4).toFixed(0) + 'px;transform:rotate(' +
+           (3 + Math.random() * 4).toFixed(0) + 'px;transform:rotate(' +
            ((Math.random() - 0.5) * 26).toFixed(0) + 'deg)">';
     }
     hstock.innerHTML = h;
@@ -872,12 +875,13 @@
   /* "Star Struck -> Sweat Smile -> Heart Eyes" is far wider than the cabinet at
      19px. Rather than wrap to two lines or clip it, shrink the type just enough
      to fit — measured, so short readings stay full size. */
-  /* The prompt names shake only when the device has actually delivered motion
-     events — DeviceMotionEvent exists on desktop Chrome and never fires there,
-     so testing for the API would promise something that does not work. */
+  /* Offer shake only on a touch device that has actually delivered motion data
+     and granted permission. Any one of those on its own is misleading: desktop
+     Chrome fires devicemotion on Macs, and the API exists where it never works. */
   var idleShowing = true;
+  function canShake() { return COARSE && motionSeen && shakeState === 'granted'; }
   function idlePrompt() {
-    return '<b>' + (motionSeen ? 'Shake or pull the lever' : 'Pull the lever') + '</b>' +
+    return '<b>' + (canShake() ? 'Shake or pull the lever' : 'Pull the lever') + '</b>' +
       '<small>let&rsquo;s see your ' + today() + '</small>';
   }
   function refreshIdle() {
