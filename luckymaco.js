@@ -31,8 +31,8 @@
        2. data-* attributes on the <script> tag   (easiest for embedders)
        3. LuckyMaco.configure({...})       at runtime                        */
   var CFG = {
-    triple:   0.08,             // odds of 3 identical  → JACKPOT
-    pair:     0.22,             // odds of exactly 2 identical, any position
+    triple:   0.05,             // odds of 3 identical  → JACKPOT
+    twins:    0.10,             // odds of exactly 2 identical, any position
     nearMiss: 0.60,             // share of pairs landing XXO. Pays the same wherever
                                 // the odd one lands — this only decides how often
                                 // reel 3 crawls, i.e. how often you get suspense.
@@ -56,7 +56,7 @@
   var DEFAULTS = {};
   for (var _k in CFG) DEFAULTS[_k] = CFG[_k];
 
-  var NUM = { triple: 1, pair: 1, nearMiss: 1 };
+  var NUM = { triple: 1, twins: 1, nearMiss: 1 };
   var BOOL = { shake: 1, sound: 1, test: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5] };
   var ENUM  = { rows: [1, 3, 5] };
@@ -65,6 +65,7 @@
 
   function configure(o) {
     if (!o) return snapshot();
+    if (o.pair != null && o.twins == null) o.twins = o.pair;   // pre-Twins alias
     for (var k in CFG) {
       if (!Object.prototype.hasOwnProperty.call(o, k) || o[k] == null) continue;
       var v = o[k];
@@ -86,18 +87,18 @@
         CFG[k] = v;
       }
     }
-    if (CFG.triple + CFG.pair > 1) {          // keep the split coherent
-      var t = CFG.triple + CFG.pair;
-      CFG.triple /= t; CFG.pair /= t;
-      warn('triple + pair exceeded 1 — normalised to ' +
-           CFG.triple.toFixed(3) + ' / ' + CFG.pair.toFixed(3));
+    if (CFG.triple + CFG.twins > 1) {         // keep the split coherent
+      var t = CFG.triple + CFG.twins;
+      CFG.triple /= t; CFG.twins /= t;
+      warn('triple + twins exceeded 1 — normalised to ' +
+           CFG.triple.toFixed(3) + ' / ' + CFG.twins.toFixed(3));
     }
     return snapshot();
   }
   function snapshot() {
     var o = {};
     for (var k in CFG) o[k] = CFG[k];
-    o.allDifferent = +(1 - CFG.triple - CFG.pair).toFixed(4);
+    o.allDifferent = +(1 - CFG.triple - CFG.twins).toFixed(4);
     return o;
   }
 
@@ -120,7 +121,6 @@
   var ICON = function (name) { return IBASE + 'macoji-' + name + '.png'; };
   var LOGO = BASE + 'brand/masterconcept-mark.png';
   var FACE = BASE + 'brand/maco-face.png';
-  var BODY = BASE + 'brand/maco-body.png';
 
   /* ── the cast ─────────────────────────────────────────────────────────── */
   var MACOJI = [
@@ -161,7 +161,7 @@
     if (!pattern) {
       var r = Math.random();
       pattern = r < CFG.triple ? 'TRIPLE'
-              : r < CFG.triple + CFG.pair ? 'PAIR' : 'ALLDIFF';
+              : r < CFG.triple + CFG.twins ? 'PAIR' : 'ALLDIFF';
     }
     if (pattern === 'TRIPLE') {
       var a = pickDistinct(1)[0];
@@ -268,9 +268,12 @@
     'width:min(360px,88vw)}',
     /* One row, always. Fixed height so revealing the test buttons cannot shift
        the machine down or change its height by a pixel. */
-    '.bar{display:flex;align-items:center;gap:8px;width:100%;',
-    'flex-wrap:nowrap;height:38px;flex:0 0 38px}',
-    '.ctls{display:flex;gap:9px;margin-left:auto;flex:0 0 auto}',
+    /* Three tracks: the test buttons sit in the middle one so they stay centred
+       on the row no matter how wide the control cluster on the right is. */
+    '.bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;',
+    'gap:8px;width:100%;height:38px;flex:0 0 38px}',
+    '.test{grid-column:2;justify-self:center}',
+    '.ctls{grid-column:3;justify-self:end;display:flex;gap:9px}',
     '.ctl{width:36px;height:36px;border:1px solid var(--cab-br);border-radius:50%;',
     'background:var(--cab);color:var(--txt);cursor:pointer;padding:0;',
     'display:grid;place-items:center;-webkit-tap-highlight-color:transparent;',
@@ -284,12 +287,11 @@
     '.ctl.off{opacity:.5}',
     /* Sits in the top bar beside the mode buttons — never over the machine. */
     '.test{display:flex;gap:5px;flex-wrap:nowrap;align-items:center;min-width:0}',
-    '.test button{padding:7px 8px;border:1px dashed var(--gold-lit);border-radius:9px;',
-    'background:transparent;color:var(--gold);font:700 9.5px/1 inherit;cursor:pointer;',
-    'letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;',
+    '.test button{padding:5px 7px;border:1px dashed var(--gold-lit);border-radius:7px;',
+    'background:transparent;color:var(--gold);font:700 8.5px/1 inherit;cursor:pointer;',
+    'letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;opacity:.8;',
     '-webkit-tap-highlight-color:transparent}',
-    '@media (max-width:400px){.test button{padding:6px 6px;font-size:8.5px;letter-spacing:0}',
-    '.test{gap:4px}}',
+    '.test button:hover{opacity:1}',
     '.test button:hover{background:var(--gold-soft)}',
     '.test button:active{transform:scale(.94)}',
     '.test[hidden]{display:none}',
@@ -314,17 +316,37 @@
     '.mq-sub{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;',
     'color:var(--mut);margin-top:4px}',
 
-    /* hopper — the machine's visible supply of Macoji, sitting above the reels */
-    '.hopper{position:relative;height:46px;margin:0 0 10px;border-radius:12px;',
-    'overflow:hidden;background:var(--reel);border:1px solid var(--cab-br)}',
-    '.hopper img{position:absolute;width:40px;height:40px;pointer-events:none}',
+    /* hopper — the machine's visible supply of Macoji, sitting above the reels.
+       The frame stays put on a jackpot; only its floor opens and the stock falls
+       through. */
+    '.hopper{position:relative;height:46px;margin:0 0 15px;border-radius:12px;',
+    'background:var(--reel);border:1px solid var(--cab-br)}',
+    '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
+    'transition:opacity .3s}',
+    '.hstock img{position:absolute;width:34px;height:34px;pointer-events:none}',
     '.hopper::after{content:"";position:absolute;inset:0;pointer-events:none;',
-    'background:linear-gradient(180deg,var(--cab) -30%,transparent 55%);opacity:.55}',
-    /* jackpot dump — clipped to the cabinet without clipping the lever */
-    '.dump{position:absolute;inset:0;overflow:hidden;border-radius:28px;',
-    'pointer-events:none;z-index:2}',
-    '.drop{position:absolute;top:96px;width:46px;height:46px;will-change:transform;',
-    'filter:drop-shadow(0 5px 10px rgba(0,0,0,.34))}',
+    'border-radius:12px;background:linear-gradient(180deg,var(--cab) -30%,transparent 55%);',
+    'opacity:.55}',
+    /* The floor: two plates that slide apart, revealing the slot they were
+       covering. A hinge reads as nothing at 5px tall — it is edge-on almost
+       immediately. A widening gap is unmistakable. */
+    '.hgap{position:absolute;left:10px;right:10px;bottom:-1px;height:6px;',
+    'border-radius:3px;background:var(--cab);box-shadow:inset 0 2px 4px rgba(0,0,0,.55);',
+    'opacity:0;transition:opacity .2s}',
+    '.hopper.open .hgap{opacity:1}',
+    '.flap{position:absolute;bottom:-1px;width:calc(50% - 9px);height:6px;',
+    'border-radius:3px;background:var(--gold-lit);z-index:2;',
+    'transition:transform .5s cubic-bezier(.45,0,.25,1),opacity .5s}',
+    '.flap.l{left:9px}',
+    '.flap.r{right:9px}',
+    '.hopper.open .flap.l{transform:translateX(-86%);opacity:0}',
+    '.hopper.open .flap.r{transform:translateX(86%);opacity:0}',
+    /* Jackpot dump fills the reel window — the machine's own container. Piling it
+       over the whole cabinet buried the result text. */
+    '.dump{position:absolute;inset:0;overflow:hidden;border-radius:16px;',
+    'pointer-events:none;z-index:3}',
+    '.drop{position:absolute;top:-14px;width:44px;height:44px;will-change:transform;',
+    'filter:drop-shadow(0 4px 9px rgba(0,0,0,.4))}',
     '.window{position:relative;display:flex;gap:8px;justify-content:center;padding:12px;border-radius:18px;',
     'background:var(--win);border:2px solid var(--win-br);box-shadow:var(--win-sh)}',
     '.reel{width:var(--cell);height:calc(var(--cell) * ' + ROWS + ');overflow:hidden;',
@@ -350,8 +372,12 @@
     '.msg{min-height:56px;display:grid;place-items:center;text-align:center;margin-top:12px;padding:0 4px}',
     '.msg b{display:block;font-size:19px;letter-spacing:.03em;white-space:nowrap}',
     '.msg b img{width:25px;height:25px;vertical-align:-6px;margin-right:7px}',
-    '.msg.jackpot b img{width:36px;height:36px;vertical-align:-9px;margin-right:8px;',
+    '.msg b img + img{margin-left:-13px}',      /* the pair huddles together */
+    '.msg.jackpot b img{width:32px;height:32px;vertical-align:-8px;margin-right:9px;',
     'animation:cheer .5s cubic-bezier(.34,1.7,.64,1) 3}',
+    '.msg.jackpot b img + img{margin-left:-15px}',
+    '.msg.jackpot b img:nth-child(2){animation-delay:.1s}',   /* a wave, not a jolt */
+    '.msg.jackpot b img:nth-child(3){animation-delay:.2s}',
     '@keyframes cheer{0%,100%{transform:rotate(0) scale(1)}',
     '35%{transform:rotate(-13deg) scale(1.14)}70%{transform:rotate(9deg) scale(1.08)}}',
     '.msg small{display:block;font-size:13px;color:var(--mut);margin-top:3px}',
@@ -435,7 +461,11 @@
     PAGE ? '.fab,.close{display:none}' +
            '.scrim{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;' +
            'opacity:1;pointer-events:none}' +
-           '.stack{pointer-events:auto}.cab{transform:none}' : ''
+           '.stack{pointer-events:auto}.cab{transform:none}' +
+           /* On its own page the controls belong to the page, not the machine —
+              pinned to the top edge so the cabinet can centre in what is left. */
+           '.bar{position:fixed;top:0;left:0;right:0;width:auto;height:auto;' +
+           'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' : ''
   ].join('');
 
   root.innerHTML =
@@ -447,8 +477,7 @@
       '<div class="bar">' +
         '<div class="test" hidden>' +
           '<button data-f="TRIPLE">Jackpot</button>' +
-          '<button data-f="PAIR">Pair</button>' +
-          '<button data-f="ALLDIFF">No match</button>' +
+          '<button data-f="PAIR">Twins</button>' +
         '</div>' +
         '<div class="ctls">' +
           '<button class="ctl tog" aria-label="Switch theme"></button>' +
@@ -464,9 +493,10 @@
             '<span class="mq-sub">Master Concept</span></div>' +
         '</div>' +
         '<div class="glare"></div>' +
-        '<div class="dump"></div>' +
-        '<div class="hopper"></div>' +
+        '<div class="hopper"><div class="hstock"></div><div class="hgap"></div>' +
+          '<div class="flap l"></div><div class="flap r"></div></div>' +
         '<div class="window">' +
+          '<div class="dump"></div>' +
           '<div class="reel"><div class="strip"></div></div>' +
           '<div class="reel"><div class="strip"></div></div>' +
           '<div class="reel"><div class="strip"></div></div>' +
@@ -474,8 +504,7 @@
           '<div class="pip l"></div><div class="pip r"></div>' +
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
-        '<div class="msg" aria-live="polite"><b>Pull the lever</b>' +
-          '<small>let&rsquo;s see your ' + today() + '</small></div>' +
+        '<div class="msg" aria-live="polite"></div>' +
         '<div class="sheet"></div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
@@ -543,6 +572,7 @@
     return h;
   }
   strips.forEach(function (s) { s.innerHTML = cells(STRIP); });
+  msg.innerHTML = idlePrompt();
 
   /* ── haptics ──────────────────────────────────────────────────────────────
      navigator.vibrate is solid on Android and unreliable on iOS Safari, so every
@@ -659,41 +689,60 @@
      A jumbled heap of Macoji resting above the reels — the visible reason the
      machine has something to give you. Laid out once with random rotations and
      depths; it's static markup afterwards, so it costs nothing to keep on screen. */
-  var hopper = $('.hopper'), dumpBox = $('.dump');
+  var hopper = $('.hopper'), hstock = $('.hstock'), dumpBox = $('.dump');
+  /* The face sits in the lower half of each sprite, so pushing them far below the
+     tray hid exactly the part worth seeing. Sit them almost flush, smaller, with
+     less tilt, and few enough that they do not bury each other. */
   function fillHopper() {
-    var n = 10, h = '';
+    var n = 9, h = '';
     for (var i = 0; i < n; i++) {
       var m = POOL[Math.floor(Math.random() * POOL.length)];
       h += '<img src="' + ICON(m) + '" alt="" style="left:' +
-           (i / n * 104 - 4 + (Math.random() - 0.5) * 5).toFixed(1) + '%;bottom:' +
-           (-8 - Math.random() * 9).toFixed(0) + 'px;transform:rotate(' +
-           ((Math.random() - 0.5) * 54).toFixed(0) + 'deg)">';
+           (i / n * 102 - 2 + (Math.random() - 0.5) * 3).toFixed(1) + '%;bottom:' +
+           (-1 - Math.random() * 4).toFixed(0) + 'px;transform:rotate(' +
+           ((Math.random() - 0.5) * 26).toFixed(0) + 'deg)">';
     }
-    hopper.innerHTML = h;
+    hstock.innerHTML = h;
   }
   fillHopper();
 
   /* Jackpot: the hopper empties itself over the reels and piles up at the bottom. */
-  var dumpTimer = null;
-  function restock() {
+  var lastPile = [], lastResult = null;
+  function clearDrops() {
     while (dumpBox.firstChild) dumpBox.removeChild(dumpBox.firstChild);
-    fillHopper();
-    hopper.style.opacity = '1';
+  }
+  /* The floor swings open and the stock drops through it. The frame itself never
+     moves — an empty hopper still reads as part of the machine. */
+  function emptyHopper() {
+    hopper.classList.add('open');
+    setTimeout(function () {
+      hstock.style.opacity = '0';
+      setTimeout(function () { hstock.innerHTML = ''; hstock.style.opacity = '1'; }, 300);
+    }, 240);                                    // let the plates part first
+  }
+  /* Called at the start of a pull, not at the end of a dump: after a jackpot the
+     machine sits empty with the pile on the floor until you play again. */
+  function restock() {
+    clearDrops();
+    if (!hstock.children.length) {
+      hopper.classList.remove('open');           // floor swings shut
+      fillHopper();
+    }
   }
   /* count = how many Macoji fall; empty = whether the hopper drains with them.
      Jackpot dumps the lot, a pair just spills a few. */
   function dump(count, empty) {
-    var box = cab.getBoundingClientRect();
+    var box = $('.window').getBoundingClientRect();
     var H = box.height, W = box.width;
-    if (dumpTimer) clearTimeout(dumpTimer);
-    restock();                                   // clear any dump still in flight
-    if (empty) { hopper.style.transition = 'opacity .3s'; hopper.style.opacity = '.15'; }
+    clearDrops();                                // any dump still in flight
+    lastPile = [];
+    if (empty) emptyHopper();
 
     /* Resting places are worked out up front by dropping each Macoji straight
        down at a random x and stopping the moment it touches one already placed.
        No columns, no rows — pieces nestle into whatever gaps exist, so the heap
        comes out organic. Circle-to-circle, since every Macoji is round. */
-    var D = 42, PAD = 16, BASE = 26;
+    var D = 40, PAD = 10, BASE = 8;
     var minX = PAD + D / 2, maxX = W - PAD - D / 2;
     var floorY = H - BASE - D / 2;
     var placed = [];
@@ -724,13 +773,16 @@
     for (var i = 0; i < count; i++) {
       (function (i) {
         var spot = dropSpot();
+        var iconName = POOL[Math.floor(Math.random() * POOL.length)];
         var el = document.createElement('img');
         el.className = 'drop';
-        el.src = ICON(POOL[Math.floor(Math.random() * POOL.length)]);
+        el.src = ICON(iconName);
         el.style.left = spot.x.toFixed(1) + 'px';
+        lastPile.push({ x: spot.x, y: spot.y, n: iconName, r: 0 });
         dumpBox.appendChild(el);
         var floor = spot.y;
         var turn = (Math.random() - 0.5) * 76;             // tossed, not filed away
+        lastPile[lastPile.length - 1].r = turn;
         var rest = 'translate(-50%,' + floor + 'px) rotate(' + turn + 'deg)';
         el.animate([
           { transform: 'translate(-50%,-40px) rotate(0deg)', opacity: 0,
@@ -738,21 +790,12 @@
           { transform: rest, opacity: 1, offset: .34, easing: 'ease-out' },
           { transform: 'translate(-50%,' + (floor - 13) + 'px) rotate(' + (turn + 9) + 'deg)',
             opacity: 1, offset: .44, easing: 'ease-in' },                // bounce
-          { transform: rest, opacity: 1, offset: .53 },
-          { transform: rest, opacity: 1, offset: .88 },                  // the pile sits
-          { transform: rest, opacity: 0 }
-        ], { duration: 2900 + Math.random() * 700,
-             delay: i * 26 + Math.random() * 55,          // ragged, not metronomic
-             fill: 'backwards' })
-          .onfinish = function () {
-            el.remove();
-            if (!dumpBox.children.length) restock();      // last one out
-          };
+          { transform: rest, opacity: 1 }                              // and there it stays
+        ], { duration: 1400 + Math.random() * 450,
+             delay: i * 30 + Math.random() * 60,          // ragged, not metronomic
+             fill: 'both' });                             // holds where it landed
       })(i);
     }
-    /* Belt and braces: if the tab is hidden mid-dump the animations pause and
-       onfinish may never land, which would leak these nodes. Sweep them anyway. */
-    dumpTimer = setTimeout(function () { dumpTimer = null; restock(); }, count * 26 + 4400);
   }
 
   /* ── load-in ──────────────────────────────────────────────────────────────
@@ -790,6 +833,11 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
+    /* A test-mode banner may have a pending restore queued. Left alone it fires
+       mid-spin and resurrects the idle text over the top of the reels. */
+    if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
+    idleShowing = false;                         // a result replaces the prompt
+    restock();                                   // sweep the floor, reload the hopper
     sClunk(); hPull();
     var res = draw(force);
     msg.className = 'msg';
@@ -824,6 +872,21 @@
   /* "Star Struck -> Sweat Smile -> Heart Eyes" is far wider than the cabinet at
      19px. Rather than wrap to two lines or clip it, shrink the type just enough
      to fit — measured, so short readings stay full size. */
+  /* The prompt names shake only when the device has actually delivered motion
+     events — DeviceMotionEvent exists on desktop Chrome and never fires there,
+     so testing for the API would promise something that does not work. */
+  var idleShowing = true;
+  function idlePrompt() {
+    return '<b>' + (motionSeen ? 'Shake or pull the lever' : 'Pull the lever') + '</b>' +
+      '<small>let&rsquo;s see your ' + today() + '</small>';
+  }
+  function refreshIdle() {
+    if (!idleShowing) return;
+    msg.className = 'msg';
+    msg.innerHTML = idlePrompt();
+    fitLine();
+  }
+
   function fitLine() {
     var b = msg.querySelector('b');
     if (!b) return;
@@ -841,18 +904,24 @@
 
   function settle(res) {
     spinning = false;
+    lastResult = res;
     stopSpinSound();
     lever.classList.remove('busy');
     var r = res.reels;
     if (res.pattern === 'TRIPLE') {
       msg.className = 'msg jackpot';
-      msg.innerHTML = '<b><img src="' + BODY + '" alt="">JACKPOT!</b><small>Triple ' +
+      /* All three winners, cheering in sequence. */
+      var win = '<img src="' + ICON(r[0]) + '" alt="">';
+      msg.innerHTML = '<b>' + win + win + win + 'JACKPOT!</b><small>Triple ' +
         label(r[0]) + ' &mdash; all of ' + today() + ' is yours</small>';
       celebrate();
     } else if (res.pattern === 'PAIR') {
       var dbl = r[0] === r[1] ? r[0] : r[2];
       msg.className = 'msg win';
-      msg.innerHTML = '<b><img src="' + FACE + '" alt="">Nice pair!</b><small>A double-' +
+      /* Show the actual twins, twice, rather than a generic Maco — the message
+         then depicts the thing it is announcing. */
+      var twin = '<img src="' + ICON(dbl) + '" alt="">';
+      msg.innerHTML = '<b>' + twin + twin + 'Twins!</b><small>Double ' +
         label(dbl) + ' kind of ' + today() + '</small>';
       celebrateSmall(res);
     } else {
@@ -893,7 +962,7 @@
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
     pulse([0, 1, 2], 'won');
-    sJack(); sFall(); hJack(); dump(34, true);
+    sJack(); sFall(); hJack(); dump(30, true);
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 
@@ -982,7 +1051,7 @@
   function onMotion(e) {
     var a = e.accelerationIncludingGravity;
     if (!a) return;
-    motionSeen = true;
+    if (!motionSeen) { motionSeen = true; refreshIdle(); }
     var mag = Math.sqrt((a.x || 0) * (a.x || 0) + (a.y || 0) * (a.y || 0) + (a.z || 0) * (a.z || 0));
     if (lastMag === null) { lastMag = mag; return; }
     var delta = Math.abs(mag - lastMag);
@@ -1011,6 +1080,11 @@
       if (done) done();
     })['catch'](function () { shakeState = 'denied'; if (done) done(); });
   }
+  /* Only iOS needs a gesture before it will hand over motion data. Everywhere
+     else, start listening straight away so the prompt can offer shake without
+     making you tap the screen first to discover it. */
+  function armShakeEarly() { if (shakeState === 'ready') enableShake(); }
+
   var SHAKE_LABEL = {
     unsupported: 'Not supported on this device',
     off:         'Turned off',
@@ -1019,6 +1093,7 @@
     ready:       'On',
     granted:     'On'
   };
+  armShakeEarly();          // must run after shakeState is assigned, not before
 
   /* ── open / close ─────────────────────────────────────────────────────── */
   var shakeAsked = false;
@@ -1034,7 +1109,7 @@
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
-  var SHOWN = ['triple', 'pair', 'rows', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
+  var SHOWN = ['triple', 'twins', 'rows', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
 
   function embedCode() {
     var lines = ['<script src="' + EMBED_SRC + '"'];
@@ -1056,10 +1131,10 @@
     sheet.innerHTML =
       '<h3>Odds</h3><table>' +
         '<tr><td>Jackpot &mdash; 3 identical</td><td>' + pct(CFG.triple) + '</td></tr>' +
-        '<tr><td>Pair &mdash; 2 identical</td><td>' + pct(CFG.pair) + '</td></tr>' +
-        '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.pair) + '</td></tr>' +
+        '<tr><td>Twins &mdash; 2 identical</td><td>' + pct(CFG.twins) + '</td></tr>' +
+        '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) + '</td></tr>' +
         '<tr><td>Suspense &mdash; reel 3 crawls</td><td>' +
-          pct(CFG.triple + CFG.pair * CFG.nearMiss) + ' of pulls</td></tr>' +
+          pct(CFG.triple + CFG.twins * CFG.nearMiss) + ' of pulls</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
@@ -1244,6 +1319,14 @@
   try { wasArmed = sessionStorage.getItem('luckymaco:test') === '1'; } catch (e) {}
   if (CFG.test || wasArmed) setTest(true);
 
+  /* Tap anywhere on the cabinet to sweep the pile away early — it otherwise sits
+     until the next pull, which is deliberate but sometimes in the way. */
+  cab.addEventListener('click', function (e) {
+    if (!dumpBox.children.length) return;
+    if (e.target.closest && e.target.closest('button, .lever, .sheet')) return;
+    clearDrops();
+  });
+
   if (PAGE) {
     scrim.classList.add('on');
     fillIn();
@@ -1269,7 +1352,7 @@
     }
     if (e.code === 'Space') { e.preventDefault(); yank(); }
     if (!testPanel.hidden) {
-      var forced = { Digit1: 'TRIPLE', Digit2: 'PAIR', Digit3: 'ALLDIFF' }[e.code];
+      var forced = { Digit1: 'TRIPLE', Digit2: 'PAIR' }[e.code];
       if (forced) { e.preventDefault(); yank(forced); }
     }
   });

@@ -20,9 +20,9 @@ All optional, set as `data-*` on the script tag.
 
 | Attribute | Default | What it does |
 |---|---|---|
-| `data-triple` | `0.08` | Odds of 3 identical (jackpot) |
-| `data-pair` | `0.22` | Odds of exactly 2 identical, any position |
-| `data-near-miss` | `0.60` | Share of pairs with the odd one on reel 3, so reel 3 crawls. Presentation only — pays the same either way. |
+| `data-triple` | `0.05` | Odds of 3 identical (jackpot) |
+| `data-twins` | `0.10` | Odds of exactly 2 identical, any position. `data-pair` still works as an alias. |
+| `data-near-miss` | `0.60` | Share of twins with the odd one on reel 3, so reel 3 crawls. Presentation only — pays the same either way. |
 | `data-rows` | `3` | Visible rows per reel: 1, 3 or 5. Only the centre row pays. |
 | `data-spin-speed` | `1` | Multiplies every reel duration. `1.5` = half again as long, `0.7` = snappier. Range 0.4–2.5. |
 | `data-mode` | `widget` | `widget` = floating button, `page` = always open |
@@ -42,9 +42,9 @@ snippet for you.
 
 | Outcome | Layout | Odds |
 |---|---|---|
-| Jackpot | `X X X` | 8% |
-| Pair | 2 identical, any position | 22% |
-| No match | all different | 70% |
+| Jackpot | `X X X` | 5% |
+| Twins | 2 identical, any position | 10% |
+| No match | all different | 85% |
 
 Outcome-first: the machine picks the **pattern** first, then fills it with random
 faces. So the odds are independent of how many Macoji exist — adding art never
@@ -52,8 +52,8 @@ changes how often you win. Verified over 500,000 pulls at both 28 and 280 symbol
 
 ## Hidden
 
-Triple-click the Master Concept mark to reveal buttons that force each outcome.
-Session-scoped. Or `LuckyMaco.pull('TRIPLE' | 'PAIR' | 'ALLDIFF')` from the console.
+Triple-click the Master Concept mark to reveal buttons that force a jackpot or
+twins. Session-scoped. Or `LuckyMaco.pull('TRIPLE' | 'PAIR' | 'ALLDIFF')` from the console.
 
 ## Files
 
@@ -61,4 +61,5 @@ Session-scoped. Or `LuckyMaco.pull('TRIPLE' | 'PAIR' | 'ALLDIFF')` from the cons
 - `about.html` — how it plays, settings, embed snippet
 - `luckymaco.js` — the whole widget, no dependencies
 - `demo.html` — embed test on a deliberately hostile host page
+- `sounds.html` — audition every sound option side by side
 - `pour.html`, `pours.html` — physics prototypes for a Tsum Tsum style pour
