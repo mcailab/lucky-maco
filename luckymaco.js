@@ -43,6 +43,8 @@
     sound:    true,             // lever clunk, reel stops, win chimes (WebAudio, no files)
     spinSpeed: 1,              // multiplies every reel duration. 1.5 = half again as
                                 // long, 0.7 = snappier. Range 0.4-2.5.
+    packing:  1.2,              // how tightly heaps stack. 1 = faces touching,
+                                // 1.3 = airier. Fewer fit as it rises. 0.8-1.5.
     rows:     3,                // visible rows per reel: 1, 3 or 5. Only the centre row pays.
     theme:    'auto',           // 'auto' follows the host page / OS | 'light' | 'dark'
     mode:     'widget',         // 'widget' = floating button | 'page' = always open, no button
@@ -58,7 +60,7 @@
 
   var NUM = { triple: 1, twins: 1, nearMiss: 1 };
   var BOOL = { shake: 1, sound: 1, test: 1, haptics: 1 };
-  var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5] };
+  var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5] };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -356,7 +358,8 @@
     '.reel{width:var(--cell);height:calc(var(--cell) * ' + ROWS + ');overflow:hidden;',
     'border-radius:12px;background:var(--reel);',
     '-webkit-mask-image:' + MASK + ';mask-image:' + MASK + '}',
-    '.strip{will-change:transform}',
+    '.strip{will-change:transform;transition:opacity .45s ease-in .25s}',
+    '.window.emptied .strip{opacity:0}',
     '.cell{width:var(--cell);height:var(--cell);display:grid;place-items:center}',
     '.cell img{width:calc(var(--cell) * .74);height:calc(var(--cell) * .74);display:block}',
     /* the pay row — the only one that counts */
@@ -536,6 +539,10 @@
   function remember(v) { try { localStorage.setItem(STORE, v); } catch (e) {} }
 
   try {
+    var savedPack = parseFloat(localStorage.getItem('luckymaco:packing'));
+    if (savedPack >= 0.8 && savedPack <= 1.5) CFG.packing = savedPack;
+  } catch (e) {}
+  try {
     var savedForce = parseFloat(localStorage.getItem('luckymaco:force'));
     if (savedForce >= 8 && savedForce <= 60) CFG.shakeForce = savedForce;
   } catch (e) {}
@@ -699,7 +706,7 @@
      space, which is why some looked suspended in mid-air. */
   var FACE_D = 0.64, FACE_Y = 0.70;
 
-  function pileLayout(count, D, W, H, pad, base, tries) {
+  function pileLayout(count, D, W, H, pad, base, tries, ceiling) {
     var minX = pad + D / 2, maxX = W - pad - D / 2;
     var floorY = H - base - D / 2, placed = [];
     function restFor(x) {
@@ -719,6 +726,9 @@
         var y = restFor(x);
         if (!best || y > best.y) best = { x: x, y: y };
       }
+      /* `count` is a maximum, not a quota. Loosening the packing means fewer
+         fit, so stop rather than stack them out through the roof. */
+      if (ceiling != null && best.y < ceiling) break;
       placed.push(best);
     }
     return placed;
@@ -739,14 +749,20 @@
   /* 9 showing on the reels, the other 19 heaped in the hopper — the machine holds
      the whole set. Laid out by the same settling routine as the jackpot pile, so
      they nestle into each other rather than lining up in rows. */
-  var STOCK = 19, HS = 34;                       // 19 = 28 minus the 9 on the reels
+  /* The hopper is a WINDOW onto a bigger reservoir, not the whole of it. The heap
+     is laid out across a box wider and taller than the frame, so Macoji run off
+     the sides and above the top and get clipped — which reads as "there is more
+     back there". It holds the 28 minus the 9 showing on the reels, and all 19
+     fall on a jackpot — the supply and the payout are the same Macoji. */
+  var STOCK = 19, HS = 34, OVER = 30;            // 19 = the 28 minus the 9 on the reels
   function fillHopper() {
-    var W = hopper.clientWidth || 320, H = hopper.clientHeight || 74;
-    var spots = pileLayout(STOCK, FACE_D * HS, W, H, 3, 3, 12);
-    var faces = distinct(STOCK), h = '';
+    var W = hopper.clientWidth || 320, H = hopper.clientHeight || 72;
+    var spots = pileLayout(STOCK, FACE_D * HS * CFG.packing, W + OVER * 2, H, 3, 3, 12,
+                           FACE_Y * HS - 70);        // may stack up out of frame
+    var faces = distinct(spots.length), h = '';
     for (var i = 0; i < spots.length; i++) {
       h += '<img src="' + ICON(faces[i]) + '" alt="" style="width:' + HS + 'px;height:' +
-        HS + 'px;left:' + (spots[i].x - HS / 2).toFixed(1) + 'px;top:' +
+        HS + 'px;left:' + (spots[i].x - OVER - HS / 2).toFixed(1) + 'px;top:' +
         (spots[i].y - FACE_Y * HS).toFixed(1) + 'px;transform:rotate(' +
         ((Math.random() - 0.5) * 70).toFixed(0) + 'deg)">';
     }
@@ -796,6 +812,7 @@
      machine sits empty with the pile on the floor until you play again. */
   function restock() {
     clearDrops();
+    $('.window').classList.remove('emptied');    // reels refill with the next spin
     if (!hstock.children.length) {
       hopper.classList.remove('open');           // floor swings shut
       fillHopper();
@@ -811,10 +828,11 @@
     lastPile = [];
     if (empty) emptyHopper();
 
-    var S = 44;                                  // sprite size; the face is 0.64 of it
-    var spots = pileLayout(count, FACE_D * S, W, H, 10, 8, 5);
+    var S = 50;                                  // sprite size; the face is 0.64 of it
+    var spots = pileLayout(count, FACE_D * S * CFG.packing, W, H, 10, 8, 5,
+                           FACE_Y * S - 90);          // never truncate: every one must land
 
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < spots.length; i++) {
       (function (i) {
         var spot = spots[i];
         var iconName = POOL[Math.floor(Math.random() * POOL.length)];
@@ -1011,7 +1029,12 @@
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
     pulse([0, 1, 2], 'won');
-    sJack(); sFall(); hJack(); dump(36, true);
+    /* Everything the machine is holding comes out: the hopper's stock plus the
+       nine on the reels. That is the whole set of 28, which is also exactly what
+       it takes to fill the window. */
+    $('.window').classList.add('emptied');       // the reels fall too
+    sJack(); sFall(); hJack();
+    dump(hstock.children.length + ROWS * 3, true);
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 
@@ -1158,7 +1181,7 @@
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
-  var SHOWN = ['triple', 'twins', 'rows', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
+  var SHOWN = ['triple', 'twins', 'rows', 'packing', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
 
   function embedCode() {
     var lines = ['<script src="' + EMBED_SRC + '"'];
@@ -1188,6 +1211,13 @@
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
         '<tr><td>Rows</td><td>' + CFG.rows + '</td></tr>' +
+        '<tr><td>Heap packing<br><span style="opacity:.7;font-size:11px">' +
+          'higher = airier, fewer fit</span></td><td class="stepcell">' +
+          '<button class="step" data-k="packing" data-d="-0.1">&minus;</button>' +
+          '<b class="pack">' + CFG.packing.toFixed(1) + '</b>' +
+          '<button class="step" data-k="packing" data-d="0.1">+</button><br>' +
+          '<span style="font-weight:400;opacity:.7;font-size:11px">' +
+          hstock.children.length + ' in the hopper</span></td></tr>' +
         '<tr><td>Reel stops at</td><td>' +
           [1.6, 2.65, 3.7].map(function (v) { return (v * CFG.spinSpeed).toFixed(1); }).join('s / ') +
           's</td></tr>' +
@@ -1236,7 +1266,15 @@
     sheet.querySelectorAll('.step').forEach(function (b) {
       b.addEventListener('click', function (e) {
         e.stopPropagation();
-        var v = Math.max(8, Math.min(60, CFG.shakeForce + parseInt(b.dataset.d, 10)));
+        var d = parseFloat(b.dataset.d);
+        if (b.dataset.k === 'packing') {
+          CFG.packing = Math.max(0.8, Math.min(1.5, Math.round((CFG.packing + d) * 10) / 10));
+          try { localStorage.setItem('luckymaco:packing', String(CFG.packing)); } catch (err) {}
+          fillHopper(); pourHopper();            // re-heap so you can see it at once
+          buildSheet();
+          return;
+        }
+        var v = Math.max(8, Math.min(60, CFG.shakeForce + d));
         CFG.shakeForce = v;
         try { localStorage.setItem('luckymaco:force', String(v)); } catch (err) {}
         sheet.querySelector('.force').textContent = v;
