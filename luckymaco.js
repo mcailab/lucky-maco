@@ -323,11 +323,11 @@
     /* hopper — the machine's visible supply of Macoji, sitting above the reels.
        The frame stays put on a jackpot; only its floor opens and the stock falls
        through. */
-    '.hopper{position:relative;height:46px;margin:0 0 15px;border-radius:12px;',
+    '.hopper{position:relative;height:74px;margin:0 0 15px;border-radius:12px;',
     'background:var(--reel);border:1px solid var(--cab-br)}',
     '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
     'transition:opacity .3s}',
-    '.hstock img{position:absolute;width:34px;height:34px;pointer-events:none}',
+    '.hstock img{position:absolute;pointer-events:none}',
     '.hopper::after{content:"";position:absolute;inset:0;pointer-events:none;',
     'border-radius:12px;background:linear-gradient(180deg,var(--cab) -30%,transparent 55%);',
     'opacity:.55}',
@@ -349,7 +349,7 @@
        over the whole cabinet buried the result text. */
     '.dump{position:absolute;inset:0;overflow:hidden;border-radius:16px;',
     'pointer-events:none;z-index:3}',
-    '.drop{position:absolute;top:-14px;width:44px;height:44px;will-change:transform;',
+    '.drop{position:absolute;will-change:transform;',
     'filter:drop-shadow(0 4px 9px rgba(0,0,0,.4))}',
     '.window{position:relative;display:flex;gap:8px;justify-content:center;padding:12px;border-radius:18px;',
     'background:var(--win);border:2px solid var(--win-br);box-shadow:var(--win-sh)}',
@@ -693,23 +693,92 @@
      A jumbled heap of Macoji resting above the reels — the visible reason the
      machine has something to give you. Laid out once with random rotations and
      depths; it's static markup afterwards, so it costs nothing to keep on screen. */
+  /* Measured off the artwork, not guessed: the pale face occupies 64% of the
+     sprite's width and sits centred 70% of the way down, with the flame tail
+     above it. Settling on the full box made sprites touch through empty tail
+     space, which is why some looked suspended in mid-air. */
+  var FACE_D = 0.64, FACE_Y = 0.70;
+
+  function pileLayout(count, D, W, H, pad, base, tries) {
+    var minX = pad + D / 2, maxX = W - pad - D / 2;
+    var floorY = H - base - D / 2, placed = [];
+    function restFor(x) {
+      var y = floorY;
+      for (var k = 0; k < placed.length; k++) {
+        var dx = Math.abs(placed[k].x - x);
+        if (dx >= D) continue;                       // no horizontal overlap
+        var top = placed[k].y - Math.sqrt(D * D - dx * dx);
+        if (top < y) y = top;                        // must sit on top of it
+      }
+      return y;
+    }
+    for (var i = 0; i < count; i++) {
+      var best = null;
+      for (var t = 0; t < (tries || 5); t++) {
+        var x = minX + Math.random() * (maxX - minX);
+        var y = restFor(x);
+        if (!best || y > best.y) best = { x: x, y: y };
+      }
+      placed.push(best);
+    }
+    return placed;
+  }
+
+  /* Distinct faces, drawn without replacement — picking at random each time put
+     the same Macoji in the hopper three times over. */
+  function distinct(n) {
+    var pool = POOL.slice(), out = [];
+    while (out.length < n && pool.length) {
+      out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    }
+    while (out.length < n) out.push(POOL[Math.floor(Math.random() * POOL.length)]);
+    return out;
+  }
+
   var hopper = $('.hopper'), hstock = $('.hstock'), dumpBox = $('.dump');
-  /* They rest ON the floor plate, not through it — bottom is measured from the
-     plate's top edge, so no sprite is ever clipped and every face is clear. */
+  /* 9 showing on the reels, the other 19 heaped in the hopper — the machine holds
+     the whole set. Laid out by the same settling routine as the jackpot pile, so
+     they nestle into each other rather than lining up in rows. */
+  var STOCK = 19, HS = 34;                       // 19 = 28 minus the 9 on the reels
   function fillHopper() {
-    var n = 9, h = '';
-    for (var i = 0; i < n; i++) {
-      var m = POOL[Math.floor(Math.random() * POOL.length)];
-      h += '<img src="' + ICON(m) + '" alt="" style="left:' +
-           (i / n * 102 - 2 + (Math.random() - 0.5) * 3).toFixed(1) + '%;bottom:' +
-           (3 + Math.random() * 4).toFixed(0) + 'px;transform:rotate(' +
-           ((Math.random() - 0.5) * 26).toFixed(0) + 'deg)">';
+    var W = hopper.clientWidth || 320, H = hopper.clientHeight || 74;
+    var spots = pileLayout(STOCK, FACE_D * HS, W, H, 3, 3, 12);
+    var faces = distinct(STOCK), h = '';
+    for (var i = 0; i < spots.length; i++) {
+      h += '<img src="' + ICON(faces[i]) + '" alt="" style="width:' + HS + 'px;height:' +
+        HS + 'px;left:' + (spots[i].x - HS / 2).toFixed(1) + 'px;top:' +
+        (spots[i].y - FACE_Y * HS).toFixed(1) + 'px;transform:rotate(' +
+        ((Math.random() - 0.5) * 70).toFixed(0) + 'deg)">';
     }
     hstock.innerHTML = h;
+  }
+
+  /* Tip the stock in. Each sprite already carries its own rotate() inline, so the
+     end keyframe reuses it verbatim and the start just prefixes a translateY —
+     otherwise animating transform would wipe the tilt. */
+  function pourHopper() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    var kids = hstock.children;
+    for (var i = 0; i < kids.length; i++) {
+      var el = kids[i], t = el.style.transform || '';
+      el.animate([
+        { transform: 'translateY(-72px) ' + t, opacity: 0 },
+        { transform: t, opacity: 1 }
+      ], {
+        duration: 460,
+        delay: i * 24 + Math.random() * 40,      // ragged, like pouring
+        easing: 'cubic-bezier(.34,1.45,.6,1)',
+        fill: 'backwards'
+      });
+    }
   }
   fillHopper();
 
   /* Jackpot: the hopper empties itself over the reels and piles up at the bottom. */
+  /* Drop `count` circles of diameter D into a W x H box: each takes a random x,
+     falls, and settles the moment it touches one already placed. Trying several
+     x's and keeping the one that settles LOWEST is what makes a heap fill its
+     gaps and mound up rather than tower. Shared by the hopper and the jackpot. */
   var lastPile = [], lastResult = null;
   function clearDrops() {
     while (dumpBox.firstChild) dumpBox.removeChild(dumpBox.firstChild);
@@ -730,6 +799,7 @@
     if (!hstock.children.length) {
       hopper.classList.remove('open');           // floor swings shut
       fillHopper();
+      pourHopper();
     }
   }
   /* count = how many Macoji fall; empty = whether the hopper drains with them.
@@ -741,57 +811,31 @@
     lastPile = [];
     if (empty) emptyHopper();
 
-    /* Resting places are worked out up front by dropping each Macoji straight
-       down at a random x and stopping the moment it touches one already placed.
-       No columns, no rows — pieces nestle into whatever gaps exist, so the heap
-       comes out organic. Circle-to-circle, since every Macoji is round. */
-    var D = 40, PAD = 10, BASE = 8;
-    var minX = PAD + D / 2, maxX = W - PAD - D / 2;
-    var floorY = H - BASE - D / 2;
-    var placed = [];
-
-    function restFor(x) {
-      var y = floorY;
-      for (var k = 0; k < placed.length; k++) {
-        var dx = Math.abs(placed[k].x - x);
-        if (dx >= D) continue;                       // no horizontal overlap
-        var top = placed[k].y - Math.sqrt(D * D - dx * dx);
-        if (top < y) y = top;                        // must sit on top of it
-      }
-      return y;
-    }
-    function dropSpot() {
-      /* Try a few random x's and take the one that settles lowest — that is what
-         makes a pile fill its gaps and mound up instead of towering. */
-      var best = null;
-      for (var t = 0; t < 5; t++) {
-        var x = minX + Math.random() * (maxX - minX);
-        var y = restFor(x);
-        if (!best || y > best.y) best = { x: x, y: y };
-      }
-      placed.push(best);
-      return best;
-    }
+    var S = 44;                                  // sprite size; the face is 0.64 of it
+    var spots = pileLayout(count, FACE_D * S, W, H, 10, 8, 5);
 
     for (var i = 0; i < count; i++) {
       (function (i) {
-        var spot = dropSpot();
+        var spot = spots[i];
         var iconName = POOL[Math.floor(Math.random() * POOL.length)];
         var el = document.createElement('img');
         el.className = 'drop';
         el.src = ICON(iconName);
-        el.style.left = spot.x.toFixed(1) + 'px';
+        el.style.width = el.style.height = S + 'px';
+        el.style.left = (spot.x - S / 2).toFixed(1) + 'px';
+        el.style.top = (spot.y - FACE_Y * S).toFixed(1) + 'px';   // resting place
         lastPile.push({ x: spot.x, y: spot.y, n: iconName, r: 0 });
         dumpBox.appendChild(el);
-        var floor = spot.y;
+        var floor = 0;
         var turn = (Math.random() - 0.5) * 76;             // tossed, not filed away
         lastPile[lastPile.length - 1].r = turn;
-        var rest = 'translate(-50%,' + floor + 'px) rotate(' + turn + 'deg)';
+        var from = -(spot.y) - 70;
+        var rest = 'translateY(0) rotate(' + turn + 'deg)';
         el.animate([
-          { transform: 'translate(-50%,-40px) rotate(0deg)', opacity: 0,
+          { transform: 'translateY(' + from + 'px) rotate(0deg)', opacity: 0,
             easing: 'cubic-bezier(.4,0,.95,.6)' },                       // gravity
           { transform: rest, opacity: 1, offset: .34, easing: 'ease-out' },
-          { transform: 'translate(-50%,' + (floor - 13) + 'px) rotate(' + (turn + 9) + 'deg)',
+          { transform: 'translateY(-13px) rotate(' + (turn + 9) + 'deg)',
             opacity: 1, offset: .44, easing: 'ease-in' },                // bounce
           { transform: rest, opacity: 1 }                              // and there it stays
         ], { duration: 1400 + Math.random() * 450,
@@ -810,6 +854,7 @@
     filled = true;
     var CELL = cellPx();
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    pourHopper();                                // the supply arrives first
     strips.forEach(function (strip, col) {
       strip.style.transition = 'none';
       strip.innerHTML = cells(STRIP);
@@ -823,7 +868,7 @@
           { transform: 'translateY(0) rotate(0)', opacity: 1 }
         ], {
           duration: 560,
-          delay: col * 90 + (ROWS - 1 - r) * 120,   // left to right, bottom row first
+          delay: 300 + col * 90 + (ROWS - 1 - r) * 120,   // left to right, bottom row first
           easing: 'cubic-bezier(.34,1.5,.6,1)',
           fill: 'backwards'
         });
@@ -966,7 +1011,7 @@
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
     pulse([0, 1, 2], 'won');
-    sJack(); sFall(); hJack(); dump(30, true);
+    sJack(); sFall(); hJack(); dump(36, true);
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 
@@ -1274,7 +1319,7 @@
      outcome; triple-tap again to hide them. 900ms window, so it takes a real
      triple-click rhythm rather than three idle taps. Session-scoped, so it can
      never linger into a demo. */
-  var TAPS = 3, TAP_WINDOW = 900;
+  var TAPS = 3, TAP_WINDOW = 900, toggledAt = 0;
   var testPanel = $('.test'), taps = 0, tapAt = 0;
   var marquee, mark;
 
@@ -1310,9 +1355,16 @@
     void mark.offsetWidth;
     mark.classList.add('tapped');
     var now = Date.now();
+    /* Cooldown after a toggle: without it, the tap that follows a successful
+       triple starts counting immediately, so a couple of extra taps flip it
+       straight back. Also reset tapAt so the next sequence begins fresh. */
+    if (now - toggledAt < 700) return;
     taps = (now - tapAt < TAP_WINDOW) ? taps + 1 : 1;
     tapAt = now;
-    if (taps >= TAPS) { taps = 0; setTest(testPanel.hidden); }
+    if (taps >= TAPS) {
+      taps = 0; tapAt = 0; toggledAt = now;
+      setTest(testPanel.hidden);
+    }
   });
 
   root.querySelectorAll('.test button').forEach(function (b) {
