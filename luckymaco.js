@@ -577,34 +577,82 @@
     if (AC.state === 'suspended' && AC.resume) AC.resume();
     return AC;
   }
-  function tone(freq, dur, type, vol, slideTo) {
+  function tone(freq, dur, type, vol, slideTo, delay) {
     if (!sound) return;
     var c = actx(); if (!c) return;
-    var o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+    var t = c.currentTime + (delay || 0);
+    var o = c.createOscillator(), g = c.createGain();
     o.type = type || 'sine';
     o.frequency.setValueAtTime(freq, t);
-    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(c.destination);
     o.start(t); o.stop(t + dur + 0.02);
   }
-  function chime(notes, step, dur, vol) {
-    notes.forEach(function (f, i) {
-      setTimeout(function () { tone(f, dur, 'triangle', vol); }, i * step);
-    });
+  /* Filtered white noise. This is what makes a sound read as a mechanism rather
+     than a beeper — pure oscillators always sound electronic. */
+  var NOISE = null;
+  function noise(dur, vol, freq, q, sweepTo, delay) {
+    if (!sound) return;
+    var c = actx(); if (!c) return;
+    if (!NOISE) {
+      var n = c.sampleRate * 2;
+      NOISE = c.createBuffer(1, n, c.sampleRate);
+      var d = NOISE.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    }
+    var t = c.currentTime + (delay || 0);
+    var src = c.createBufferSource(); src.buffer = NOISE; src.loop = true;
+    var f = c.createBiquadFilter(); f.type = 'bandpass';
+    f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(Math.max(40, sweepTo), t + dur);
+    var g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start(t); src.stop(t + dur + 0.02);
   }
-  var sClunk = function () { tone(190, 0.24, 'triangle', 0.30, 52); };   // lever released
-  var sStop  = function () { tone(660, 0.07, 'square',   0.07); };       // a reel lands
-  var sWin   = function () { chime([523, 659, 784], 95, 0.24, 0.15); };
-  var sJack  = function () { chime([523, 659, 784, 1047, 1319, 1568], 105, 0.32, 0.17); };
-  function sCascade() {                                  // Macoji clattering down
-    for (var i = 0; i < 22; i++) {
-      (function (i) {
-        setTimeout(function () {
-          tone(480 + Math.random() * 760, 0.05, 'square', 0.045);
-        }, 260 + i * 88 + Math.random() * 70);
-      })(i);
+  function chime(notes, step, dur, vol, type) {
+    notes.forEach(function (f, i) { tone(f, dur, type || 'triangle', vol, 0, i * step / 1000); });
+  }
+
+  /* Lever: the ratchet clicking through its travel, ending on a firmer detent.
+     No low thud — it muddied the clicks. */
+  var sClunk = function () {
+    for (var i = 0; i < 7; i++) noise(0.02, 0.26, 2200 - i * 160, 6, 0, i * 0.026);
+    noise(0.038, 0.44, 1500, 5, 0, 0.19);
+    tone(300, 0.05, 'square', 0.10, 0, 0.19);
+  };
+
+  /* Reels: a motor whir under a tick per symbol, both slowing with the reel. */
+  var spinTick = null;
+  function sSpin(ms) {
+    if (!sound) return;
+    noise(ms / 1000, 0.075, 300, 3.5, 140);
+    var gap = 30, elapsed = 0;
+    (function tick() {
+      if (!sound || elapsed > ms - 160) { spinTick = null; return; }
+      noise(0.013, 0.12, 2500, 7);
+      gap += 1.6; elapsed += gap;
+      spinTick = setTimeout(tick, gap);
+    })();
+  }
+  function stopSpinSound() { if (spinTick) { clearTimeout(spinTick); spinTick = null; } }
+
+  var sStop = function () { tone(660, 0.07, 'square', 0.07); };
+  var sWin  = function () { chime([1047, 1319, 1568, 2093], 62, 0.18, 0.09, 'sine'); };
+  var sJack = function () {
+    [[523, 659], [587, 740], [659, 831], [784, 1047], [1047, 1319]].forEach(function (pair, i) {
+      pair.forEach(function (f) { tone(f, 0.4, 'triangle', 0.13, 0, i * 0.13); });
+    });
+  };
+  /* Falling Macoji: wooden blocks tumbling, not metal. */
+  function sFall() {
+    for (var i = 0; i < 26; i++) {
+      var d = 0.15 + i * 0.075;
+      noise(0.045, 0.1, 420 + Math.random() * 380, 3, 0, d);
+      tone(150 + Math.random() * 180, 0.07, 'sine', 0.07, 0, d);
     }
   }
 
@@ -745,17 +793,22 @@
     lever.classList.add('busy');
     sClunk(); hPull();
     var res = draw(force);
+    stopSpinSound();
+    sSpin(res.tease ? 4200 : 2900);
     msg.className = 'msg';
     msg.innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
 
-    var dur = [1150, 1650, res.tease ? 3300 : 2150];   // reel 3 crawls on a near-miss
+    /* Longer, and weighted so the slowdown is actually visible. The old curve
+       covered 66% of the travel in the first 20% of time, so the remaining 70%
+       of the spin was an imperceptible crawl that read as "stopped". */
+    var dur = [1500, 2100, res.tease ? 4200 : 2900];   // reel 3 crawls on a near-miss
     var CELL = cellPx(), done = 0;
     strips.forEach(function (strip, i) {
       strip.style.transition = 'none';
       strip.style.transform = 'translateY(0)';
       strip.innerHTML = cells(STRIP, res.reels[i], AT);
       void strip.offsetHeight;                          // force reflow
-      strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.16,.68,.2,1)';
+      strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.5,.2,.25,1)';
       strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
       setTimeout(function () { sStop(); hStop(); if (++done === 3) settle(res); }, dur[i] + 60);
     });
@@ -788,6 +841,7 @@
 
   function settle(res) {
     spinning = false;
+    stopSpinSound();
     lever.classList.remove('busy');
     var r = res.reels;
     if (res.pattern === 'TRIPLE') {
@@ -839,7 +893,7 @@
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
     pulse([0, 1, 2], 'won');
-    sJack(); sCascade(); hJack(); dump(34, true);
+    sJack(); sFall(); hJack(); dump(34, true);
     setTimeout(function () { marquee.classList.remove('flash'); }, 2100);
   }
 

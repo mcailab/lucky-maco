@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lucky Maco — sound lab</title>
+<link rel="icon" href="brand/maco-face.png">
+<style>
+  :root{color-scheme:light dark;
+    --bg:#F4F6FA;--card:#fff;--txt:#2D3436;--mut:#6B7280;--line:#E3E7EF;
+    --gold:#B87410;--lit:#E9982B;--chip:rgba(27,42,91,.05)}
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0E1430;--card:#1A2246;--txt:#F2F4F9;--mut:rgba(255,255,255,.6);
+    --line:rgba(255,255,255,.11);--gold:#FFD772;--lit:#FFC96B;--chip:rgba(255,255,255,.06)}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:500 15px/1.55 ui-rounded,-apple-system,"Segoe UI",system-ui,sans-serif}
+  main{max-width:620px;margin:0 auto;padding:40px 20px 90px}
+  .top{display:flex;align-items:center;gap:11px;margin-bottom:4px}
+  .top img{width:40px;height:40px}
+  h1{font-size:24px;margin:0}
+  .sub{color:var(--mut);font-size:14px;margin:0 0 8px}
+  .warn{background:var(--chip);border:1px solid var(--line);border-radius:12px;
+    padding:11px 14px;font-size:13px;color:var(--mut);margin:16px 0 28px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px 18px;margin-bottom:14px}
+  h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0 0 3px}
+  .note{font-size:13px;color:var(--mut);margin:0 0 13px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{display:flex;align-items:center;gap:11px}
+  .opt button{flex:none;width:46px;height:38px;border:1px solid var(--line);border-radius:10px;
+    background:var(--chip);color:var(--txt);font-size:15px;cursor:pointer}
+  .opt button:hover{background:var(--lit);color:#fff;border-color:transparent}
+  .opt button:active{transform:scale(.94)}
+  .opt .lbl{font-size:13.5px}
+  .opt .lbl b{display:block;font-size:14px}
+  .opt .lbl span{color:var(--mut);font-size:12.5px}
+  .cur{display:inline-block;margin-left:7px;padding:2px 7px;border-radius:99px;
+    background:var(--lit);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.1em;
+    text-transform:uppercase;vertical-align:2px}
+  .slider{margin-top:12px}
+  .slider input{width:100%}
+  .slider .val{font-size:12.5px;color:var(--mut)}
+  footer{text-align:center;color:var(--mut);font-size:13px;margin-top:26px}
+  footer a{color:var(--gold)}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><img src="brand/maco-face.png" alt=""><h1>Sound lab</h1></div>
+  <p class="sub">Every option below is synthesised live — no audio files. Tap to hear, tell me which to keep.</p>
+  <div class="warn"><b>Turn your volume up.</b> Audio can only start after you tap something, so the first
+    press may be a fraction quiet.</div>
+
+  <section id="lever"></section>
+  <section id="spin"></section>
+  <section id="stop"></section>
+  <section id="pair"></section>
+  <section id="jack"></section>
+  <section id="fall"></section>
+
+  <footer><a href="index.html">&larr; back to the machine</a></footer>
+</main>
+
+<script>
+/* ── tiny synth kit ─────────────────────────────────────────────────────── */
+var AC=null;
+function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+  if(AC.state==='suspended') AC.resume(); return AC; }
+
+function tone(f,dur,type,vol,slide,delay){
+  var c=ac(),t=c.currentTime+(delay||0);
+  var o=c.createOscillator(),g=c.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide),t+dur);
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+.02);
+}
+var NOISE=null;
+function noiseBuf(){
+  var c=ac(); if(NOISE) return NOISE;
+  var n=c.sampleRate*2, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+  for(var i=0;i<n;i++) d[i]=Math.random()*2-1;
+  return NOISE=b;
+}
+function noise(dur,vol,freq,q,sweep,delay,type){
+  var c=ac(),t=c.currentTime+(delay||0);
+  var s=c.createBufferSource(); s.buffer=noiseBuf(); s.loop=true;
+  var f=c.createBiquadFilter(); f.type=type||'bandpass';
+  f.frequency.setValueAtTime(freq,t); f.Q.value=q||1;
+  if(sweep) f.frequency.exponentialRampToValueAtTime(Math.max(40,sweep),t+dur);
+  var g=c.createGain();
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f); f.connect(g); g.connect(c.destination); s.start(t); s.stop(t+dur+.02);
+}
+function chime(ns,step,dur,vol,type){ ns.forEach(function(f,i){ tone(f,dur,type||'triangle',vol,0,i*step/1000) }) }
+
+/* ── the options ────────────────────────────────────────────────────────── */
+var SPINNERS=[];
+function stopSpin(){ SPINNERS.forEach(function(id){clearInterval(id)}); SPINNERS=[]; }
+
+var GROUPS=[
+ {el:'lever', title:'Lever pull', note:'Plays the moment you let go of the knob.',
+  opts:[
+   {n:'Soft thud', d:'A pitch drop, quite gentle.',
+    f:function(){ tone(190,.24,'triangle',.30,52) }},
+   {n:'Mechanical clunk', d:'Filtered noise plus a low body. Sounds like metal.',
+    f:function(){ noise(.13,.5,900,1.2,180); tone(120,.22,'sine',.34,55,.01) }},
+   {n:'Ratchet', d:'Ships now — clicks through the travel, ending on a firmer detent. The low thunk is gone.', cur:1,
+    f:function(){ for(var i=0;i<7;i++) noise(.02,.26,2200-i*160,6,0,i*.026);
+                  noise(.038,.44,1500,5,0,.19); tone(300,.05,'square',.10,0,.19) }}
+  ]},
+ {el:'spin', title:'Reels spinning', note:'A continuous sound while the reels scroll. Nothing plays here today.',
+  opts:[
+   {n:'Mechanical ticks', d:'A tick per symbol passing, slowing with the reel.',
+    f:function(){ stopSpin(); var i=0,gap=28;
+      var id=setInterval(function(){ noise(.014,.16,2600,7); i++;
+        if(i>34){clearInterval(id)} else if(i>16){ clearInterval(id);
+          var j=0,g2=gap; var id2=setInterval(function(){ noise(.014,.16,2600,7); g2+=9; j++;
+            if(j>13) clearInterval(id2); },70); SPINNERS.push(id2); } },gap);
+      SPINNERS.push(id); }},
+   {n:'Motor whir', d:'A low hum that drops in pitch as the reel slows.',
+    f:function(){ noise(1.5,.10,320,3.5,140,0,'bandpass'); tone(150,1.5,'sawtooth',.05,70) }},
+   {n:'Whir + ticks', d:'Ships now. Closest to a real cabinet.', cur:1,
+    f:function(){ noise(1.5,.08,300,3.5,140); var i=0,gap=30;
+      var id=setInterval(function(){ noise(.013,.13,2500,7); i++; gap+=1.6;
+        if(i>30) clearInterval(id); },34); SPINNERS.push(id); }}
+  ]},
+ {el:'stop', title:'Reel stops', note:'One per reel, three per spin.',
+  opts:[
+   {n:'Blip', d:'Ships now — a short square tone.', cur:1,
+    f:function(){ tone(660,.07,'square',.07) }},
+   {n:'Detent click', d:'A sharp click with a little body under it. Mechanical.',
+    f:function(){ noise(.03,.34,3000,6); tone(220,.09,'sine',.16,120,.005) }},
+   {n:'Heavy chunk', d:'Lower and weightier. Reads as a big reel landing.',
+    f:function(){ noise(.06,.4,600,2,220); tone(90,.13,'sine',.3,55,.005) }}
+  ]},
+ {el:'pair', title:'Pair win', note:'22% of pulls.',
+  opts:[
+   {n:'Three-note chime', d:'C, E, G rising.',
+    f:function(){ chime([523,659,784],95,.24,.15) }},
+   {n:'Two-note ding', d:'Shorter, less fussy. Gets out of the way.',
+    f:function(){ tone(784,.16,'triangle',.16); tone(1047,.34,'triangle',.15,0,.11) }},
+   {n:'Sparkle', d:'Ships now — a quick shimmer up top.', cur:1,
+    f:function(){ chime([1047,1319,1568,2093],62,.18,.09,'sine') }}
+  ]},
+ {el:'jack', title:'Jackpot', note:'8% of pulls. Plays with the Macoji shower.',
+  opts:[
+   {n:'Six-note run', d:'A scale up to G.',
+    f:function(){ chime([523,659,784,1047,1319,1568],105,.32,.17) }},
+   {n:'Fanfare', d:'Ships now — two notes at a time, a chord not a scale.', cur:1,
+    f:function(){ [[523,659],[587,740],[659,831],[784,1047],[1047,1319]].forEach(function(p,i){
+      p.forEach(function(f){ tone(f,.4,'triangle',.13,0,i*.13) }) }) }},
+   {n:'Bell + rise', d:'A swell underneath and a bell on top.',
+    f:function(){ tone(180,.9,'sawtooth',.07,900);
+      [1047,1319,1568,2093].forEach(function(f,i){ tone(f,.7,'sine',.12,0,.45+i*.1) }) }}
+  ]},
+ {el:'fall', title:'Falling Macoji', note:'Under the jackpot shower, 34 of them landing.',
+  opts:[
+   {n:'Pitched ticks', d:'Random square blips.',
+    f:function(){ for(var i=0;i<22;i++) tone(480+Math.random()*760,.05,'square',.045,0,.26+i*.088) }},
+   {n:'Coin clatter', d:'Short noise bursts. Sounds like things hitting a tray.',
+    f:function(){ for(var i=0;i<26;i++) noise(.035,.12+Math.random()*.1,
+      1400+Math.random()*2200,5,0,.15+i*.072) }},
+   {n:'Wooden tumble', d:'Ships now — softer and lower. Blocks rather than metal.', cur:1,
+    f:function(){ for(var i=0;i<26;i++){ var d=.15+i*.075;
+      noise(.045,.1,420+Math.random()*380,3,0,d);
+      tone(150+Math.random()*180,.07,'sine',.07,0,d) } }}
+  ]}
+];
+
+GROUPS.forEach(function(g){
+  var host=document.getElementById(g.el);
+  host.innerHTML='<h2>'+g.title+'</h2><p class="note">'+g.note+'</p><div class="opts"></div>';
+  var wrap=host.querySelector('.opts');
+  g.opts.forEach(function(o,i){
+    var row=document.createElement('div'); row.className='opt';
+    row.innerHTML='<button aria-label="Play">&#9654;</button><div class="lbl"><b>'+
+      String.fromCharCode(65+i)+'. '+o.n+(o.cur?'<span class="cur">current</span>':'')+
+      '</b><span>'+o.d+'</span></div>';
+    row.querySelector('button').addEventListener('click',function(){ stopSpin(); o.f() });
+    wrap.appendChild(row);
+  });
+});
+
+/* lever responsiveness demo */
+var lv=document.getElementById('lever');
+var demo=document.createElement('div'); demo.className='slider';
+demo.innerHTML='<p class="note" style="margin:14px 0 6px"><b>Responsive to the pull</b> &mdash; '+
+  'drag to set how far the lever was pulled, then release. Pitch and weight follow it.</p>'+
+  '<input type="range" min="0" max="100" value="60"><div class="val">pull: <b>60</b>%</div>';
+lv.appendChild(demo);
+var rng=demo.querySelector('input'), val=demo.querySelector('.val b');
+rng.addEventListener('input',function(){ val.textContent=rng.value });
+rng.addEventListener('change',function(){
+  var k=rng.value/100;                       // 0 = feather, 1 = full yank
+  for(var i=0;i<Math.round(3+k*7);i++) noise(.02,.2+k*.18,2400-i*130,6,0,i*.024);
+  var s=.16+k*.14;
+  tone(150-k*45,s,'sine',.2+k*.25,(150-k*45)*0.35,.2*k+.02);
+  noise(.09+k*.06,.25+k*.25,900-k*300,1.5,180,.2*k+.02);
+});
+</script>
+</body>
+</html>
