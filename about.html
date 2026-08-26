@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lucky Maco — about &amp; embed</title>
+<link rel="icon" href="brand/maco-face.png">
+<style>
+  :root{
+    color-scheme:light dark;
+    --bg:#F4F6FA; --card:#fff; --txt:#2D3436; --mut:#6B7280;
+    --line:#E3E7EF; --accent:#B87410; --code:#EEF1F7;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0E1430; --card:#1A2246; --txt:#F2F4F9; --mut:rgba(255,255,255,.62);
+           --line:rgba(255,255,255,.12); --accent:#FFD772; --code:#131A38 }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:500 16px/1.65 ui-rounded,-apple-system,"Segoe UI",system-ui,sans-serif}
+  main{max-width:640px;margin:0 auto;padding:56px 22px 100px}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .top img{width:44px;height:44px}
+  h1{font-size:27px;margin:0;letter-spacing:-.01em}
+  .sub{color:var(--mut);margin:0 0 34px;font-size:15px}
+  h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+    margin:38px 0 12px}
+  p{color:var(--mut);margin:0 0 14px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:0 0 8px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  td code{color:var(--txt)}
+  code{background:var(--code);padding:2px 6px;border-radius:5px;
+    font:500 13px/1.5 ui-monospace,Menlo,monospace}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:12px;
+    padding:15px 17px;overflow-x:auto;margin:0 0 14px}
+  pre code{background:none;padding:0;font-size:12.5px;line-height:1.65}
+  .back{display:inline-block;margin-top:40px;color:var(--accent);text-decoration:none;font-size:14px}
+  .back:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <img src="brand/maco-face.png" alt="">
+    <h1>Lucky Maco</h1>
+  </div>
+  <p class="sub">A little Macoji slot machine. Pull the lever, shake your phone, or hit space.</p>
+
+  <h2>How it plays</h2>
+  <p>Three reels, all 28 Macoji live on every pull. Land three identical for the jackpot,
+     two for a small win, and anything else gives you a reading of your day — so no pull is
+     ever wasted.</p>
+
+  <table>
+    <tr><th>Outcome</th><th>Odds</th></tr>
+    <tr><td>3 identical &mdash; jackpot</td><td>8%</td></tr>
+    <tr><td>2 identical &mdash; pair</td><td>22%</td></tr>
+    <tr><td>No match</td><td>70%</td></tr>
+  </table>
+  <p>Those odds are fixed no matter how many Macoji exist. The machine picks the
+     <em>pattern</em> first, then fills it with faces &mdash; so growing the icon set from 28 to
+     280 never changes how often you win. 60% of pairs land with the odd one on reel&nbsp;3,
+     which is why that reel crawls to a stop.</p>
+
+  <h2 id="embed">Put it on your page</h2>
+  <p>One line. It adds a floating Maco button in the corner that expands the game.
+     No dependencies, no network calls, nothing stored.</p>
+  <pre><code>&lt;script src="https://mcailab.github.io/lucky-maco/luckymaco.js" defer&gt;&lt;/script&gt;</code></pre>
+
+  <h2>Settings</h2>
+  <p>All optional &mdash; every one falls back to its default.</p>
+  <table>
+    <tr><th>Attribute</th><th>Default</th><th>What it does</th></tr>
+    <tr><td><code>data-triple</code></td><td>0.08</td><td>Odds of 3 identical</td></tr>
+    <tr><td><code>data-pair</code></td><td>0.22</td><td>Odds of exactly 2 identical, any position</td></tr>
+    <tr><td><code>data-near-miss</code></td><td>0.60</td><td>Share of pairs with the odd one on reel 3, so reel 3 crawls. Presentation only &mdash; pays the same either way.</td></tr>
+    <tr><td><code>data-mode</code></td><td>widget</td><td><code>widget</code> = floating button, <code>page</code> = always open</td></tr>
+    <tr><td><code>data-theme</code></td><td>auto</td><td><code>auto</code> / <code>light</code> / <code>dark</code></td></tr>
+    <tr><td><code>data-position</code></td><td>bottom-right</td><td>Or <code>bottom-left</code></td></tr>
+    <tr><td><code>data-shake</code></td><td>true</td><td>Shake-to-pull on mobile</td></tr>
+    <tr><td><code>data-shake-force</code></td><td>26</td><td>Sensitivity, 8&ndash;60. Lower is twitchier</td></tr>
+    <tr><td><code>data-set</code></td><td>&mdash;</td><td>Restrict the pool, e.g. <code>fire,joy,wink,grin</code></td></tr>
+  </table>
+
+  <pre><code>&lt;script src="luckymaco.js"
+        data-triple="0.10"
+        data-pair="0.25"
+        data-position="bottom-left"
+        defer&gt;&lt;/script&gt;</code></pre>
+
+  <p>You can also set <code>window.LuckyMacoConfig</code> before the script, or call
+     <code>LuckyMaco.configure({...})</code> at runtime. The game renders in a shadow root,
+     so its styles and your page's can't touch each other.</p>
+
+  <h2>Notes</h2>
+  <p>Shake needs HTTPS &mdash; it's a secure-context API, so it won't fire over plain
+     <code>http://</code>. On iOS the first tap on Maco asks for motion permission; if it's
+     declined, the lever still works.</p>
+
+  <a class="back" href="index.html">&larr; Play</a>
+</main>
+</body>
+</html>

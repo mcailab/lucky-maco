@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lucky Maco — pour prototype</title>
+<link rel="icon" href="brand/maco-face.png">
+<style>
+  :root{color-scheme:light dark;
+    --bg:#F4F6FA;--card:#fff;--txt:#2D3436;--mut:#6B7280;--line:rgba(27,42,91,.14);
+    --jar:rgba(27,42,91,.05);--jar-br:rgba(233,152,43,.45);--gold:#B87410;--lit:#E9982B}
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0E1430;--card:linear-gradient(180deg,#22305F,#121A38);--txt:#fff;
+    --mut:rgba(255,255,255,.62);--line:rgba(255,255,255,.10);
+    --jar:rgba(255,255,255,.05);--jar-br:rgba(255,201,107,.35);--gold:#FFD772;--lit:#FFC96B}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--txt);
+    display:grid;place-items:center;padding:24px 16px 60px;
+    font:500 15px/1.5 ui-rounded,-apple-system,"Segoe UI",system-ui,sans-serif}
+  .cab{width:min(380px,94vw);background:var(--card);border:1px solid var(--line);
+    border-radius:28px;padding:18px 18px 22px;box-shadow:0 24px 60px rgba(27,42,91,.22)}
+  .mq{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;
+    padding:9px 16px;border-radius:16px;border:1px solid var(--jar-br);
+    background:linear-gradient(180deg,rgba(233,152,43,.16),rgba(233,152,43,.03))}
+  .mq img{width:28px;height:28px}
+  .mq b{font-size:19px;color:var(--gold)}
+  .mq small{display:block;font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--mut)}
+  canvas{display:block;width:100%;border-radius:18px;background:var(--jar);
+    border:2px solid var(--jar-br);touch-action:none}
+  .msg{min-height:50px;display:grid;place-items:center;text-align:center;margin-top:12px}
+  .msg b{font-size:19px}.msg.win b{color:var(--gold)}
+  .msg.jackpot b{font-size:24px;color:var(--gold)}
+  .msg small{display:block;color:var(--mut);font-size:13px;margin-top:3px}
+  .go{display:block;width:100%;margin-top:6px;padding:13px;border:0;border-radius:14px;
+    background:var(--lit);color:#fff;font:700 15px/1 inherit;cursor:pointer;letter-spacing:.02em}
+  .go:disabled{opacity:.45;cursor:default}
+  .note{max-width:380px;margin-top:18px;font-size:12.5px;color:var(--mut);text-align:center}
+  .note a{color:var(--gold)}
+</style>
+</head>
+<body>
+<div>
+  <div class="cab">
+    <div class="mq"><img src="brand/masterconcept-mark.png" alt="">
+      <div><b>Lucky Maco</b><small>Pour prototype</small></div></div>
+    <canvas id="c" width="680" height="800"></canvas>
+    <div class="msg" id="msg"><b>Tip the bucket</b><small>28 Macoji, every pour different</small></div>
+    <button class="go" id="go">POUR</button>
+  </div>
+  <p class="note">Physics is decoration only &mdash; the three winners are chosen
+     <em>before</em> a single Macoji falls, so the 5&nbsp;/&nbsp;20&nbsp;/&nbsp;75 odds hold no
+     matter how many icons exist. <a href="index.html">&larr; reels version</a></p>
+</div>
+
+<script>
+const MACOJI = ['blush','cry','dizzy','eyes','fire','grimace','grin','heart-eyes','hearts',
+  'innocent','joy','neutral','open-mouth','pleading','rage','relieved','scream','sleeping',
+  'smirk','sob','sparkles','star-struck','sunglasses','sweat-smile','thinking','tongue','wink','yum'];
+
+/* ── outcome-first: identical engine to the reels build ─────────────────── */
+const ODDS = {triple:0.05, pair:0.20, nearMiss:0.60};
+const pickDistinct = n => { const p = MACOJI.slice(), o = [];
+  for (let i=0;i<n;i++) o.push(...p.splice(Math.random()*p.length|0,1)); return o; };
+function drawResult(){
+  const r = Math.random();
+  if (r < ODDS.triple){ const a = pickDistinct(1)[0]; return {pattern:'TRIPLE', reels:[a,a,a]}; }
+  if (r < ODDS.triple+ODDS.pair){
+    const d = pickDistinct(2), q = Math.random();
+    const at = q < ODDS.nearMiss ? 2 : (q < ODDS.nearMiss+(1-ODDS.nearMiss)/2 ? 1 : 0);
+    const reels = [d[0],d[0],d[0]]; reels[at] = d[1];
+    return {pattern:'PAIR', reels};
+  }
+  return {pattern:'ALLDIFF', reels:pickDistinct(3)};
+}
+
+/* ── images ─────────────────────────────────────────────────────────────── */
+const IMG = {};
+let ready = 0;
+MACOJI.forEach(n => { const i = new Image(); i.src = 'macoji/macoji-'+n+'.png';
+  i.onload = () => { if (++ready === MACOJI.length) go.disabled = false; }; IMG[n] = i; });
+
+/* ── a 90-line circle solver. Every Macoji is a circle — that's the whole
+      reason a physics library isn't needed here. ─────────────────────────── */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height, R = 46;
+const G = 0.85, REST = 0.34, DAMP = 0.992, WALL = 0.5;
+let bodies = [], phase = 'idle', t = 0, result = null, slots = [], drainAt = 0;
+
+function step(){
+  for (const b of bodies){
+    if (b.fixed) continue;
+    b.vy += G; b.vx *= DAMP; b.vy *= DAMP;
+    b.x += b.vx; b.y += b.vy; b.a += b.va; b.va *= 0.97;
+    if (b.x < R){ b.x = R; b.vx = -b.vx*WALL; b.va += b.vy*0.004; }
+    if (b.x > W-R){ b.x = W-R; b.vx = -b.vx*WALL; b.va -= b.vy*0.004; }
+    const floorOpen = phase === 'drain' && b.x > 60 && b.x < W-60;
+    if (!floorOpen && b.y > H-R){ b.y = H-R; b.vy = -b.vy*REST; b.vx *= 0.86; b.va *= 0.8; }
+  }
+  for (let k=0;k<5;k++){                                  // relaxation passes
+    for (let i=0;i<bodies.length;i++) for (let j=i+1;j<bodies.length;j++){
+      const a = bodies[i], b = bodies[j];
+      if (a.fixed && b.fixed) continue;
+      let dx = b.x-a.x, dy = b.y-a.y, d2 = dx*dx+dy*dy;
+      const min = R*2;
+      if (d2 > min*min || d2 === 0) continue;
+      const d = Math.sqrt(d2), ov = (min-d)/2, nx = dx/d, ny = dy/d;
+      if (!a.fixed){ a.x -= nx*ov; a.y -= ny*ov; }
+      if (!b.fixed){ b.x += nx*ov; b.y += ny*ov; }
+      const rv = (b.vx-a.vx)*nx + (b.vy-a.vy)*ny;
+      if (rv > 0) continue;
+      const imp = -(1+REST)*rv/2;
+      if (!a.fixed){ a.vx -= imp*nx; a.vy -= imp*ny; a.va -= imp*0.004; }
+      if (!b.fixed){ b.vx += imp*nx; b.vy += imp*ny; b.va += imp*0.004; }
+    }
+  }
+  bodies = bodies.filter(b => b.y < H + R*3);
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  if (phase === 'reveal' || phase === 'drain'){          // payline
+    ctx.strokeStyle = 'rgba(233,152,43,.5)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(30,H-120); ctx.lineTo(W-30,H-120); ctx.stroke();
+  }
+  for (const b of bodies){
+    ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.a);
+    if (b.win){ ctx.shadowColor = 'rgba(233,152,43,.9)'; ctx.shadowBlur = 26; }
+    ctx.drawImage(IMG[b.name], -R, -R, R*2, R*2);
+    ctx.restore();
+  }
+}
+
+function frame(){
+  t++;
+  if (phase === 'pour'){
+    if (t % 3 === 0 && bodies.length < 42){                // random spawn = random pile
+      const name = MACOJI[Math.random()*MACOJI.length|0];
+      bodies.push({name, x: W/2 + (Math.random()-0.5)*140, y: -R,
+        vx:(Math.random()-0.5)*7, vy: 3+Math.random()*4,
+        a:Math.random()*6.28, va:(Math.random()-0.5)*0.22, fixed:false, win:false});
+    }
+    if (bodies.length >= 42 && t > 150){ phase = 'settle'; t = 0; }
+  } else if (phase === 'settle'){
+    if (t > 55){ phase = 'drain'; t = 0; drainAt = 0; placeWinners(); }
+  } else if (phase === 'drain'){
+    if (t > 90){ phase = 'reveal'; announce(); }
+  }
+  step(); render();
+  requestAnimationFrame(frame);
+}
+
+/* The three winners were decided before the pour. They're pinned to the
+   payline; everything else drains away through the trapdoor. */
+function placeWinners(){
+  const xs = [W*0.22, W*0.5, W*0.78];
+  slots = result.reels.map((name,i) => ({name, x:xs[i], y:H-120}));
+  slots.forEach(s => bodies.push({name:s.name, x:s.x, y:s.y, vx:0, vy:0,
+    a:0, va:0, fixed:true, win:true}));
+}
+
+function announce(){
+  const m = document.getElementById('msg'), r = result.reels;
+  const w = n => String(n).split('-').map(s => s[0].toUpperCase()+s.slice(1)).join(' ');
+  if (result.pattern === 'TRIPLE'){
+    m.className = 'msg jackpot';
+    m.innerHTML = '<b>&#127920; JACKPOT!</b><small>Triple '+w(r[0])+'</small>';
+  } else if (result.pattern === 'PAIR'){
+    const dbl = r[0]===r[1] ? r[0] : r[2];
+    m.className = 'msg win';
+    m.innerHTML = '<b>&#10024; Nice pair!</b><small>Double '+w(dbl)+'</small>';
+  } else {
+    m.className = 'msg';
+    m.innerHTML = '<b>'+w(r[0])+' &rarr; '+w(r[1])+' &rarr; '+w(r[2])+'</b>'+
+      '<small>morning to evening, that&rsquo;s your day</small>';
+  }
+  go.disabled = false; go.textContent = 'POUR AGAIN';
+}
+
+const go = document.getElementById('go');
+go.disabled = true;
+go.onclick = () => {
+  go.disabled = true;
+  document.getElementById('msg').className = 'msg';
+  document.getElementById('msg').innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
+  bodies = []; t = 0; phase = 'pour'; result = drawResult();
+};
+frame();
+</script>
+</body>
+</html>
