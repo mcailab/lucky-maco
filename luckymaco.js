@@ -359,8 +359,6 @@
     '.msg.jackpot b{font-size:25px;color:var(--gold);animation:pop .55s cubic-bezier(.34,1.9,.64,1)}',
     '@keyframes pop{0%{transform:scale(.5);opacity:0}100%{transform:none;opacity:1}}',
 
-    '.hint{text-align:center;font-size:11px;color:var(--faint);margin-top:12px}',
-    '.hint:empty{display:none}',
     /* settings sheet — slides over the cabinet interior */
     '.sheet{position:absolute;inset:0;border-radius:28px;background:var(--cab);z-index:4;',
     'padding:18px 18px 16px;overflow-y:auto;display:none}',
@@ -478,7 +476,6 @@
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"><b>Pull the lever</b>' +
           '<small>let&rsquo;s see your ' + today() + '</small></div>' +
-        '<div class="hint"></div>' +
         '<div class="sheet"></div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
@@ -1034,14 +1031,6 @@
 
   /* Theme toggle — needed in BOTH page and widget mode, so it lives outside
      the mode branch. Hidden entirely when the host pinned data-theme. */
-  /* The hint is keyboard-only advice: pointless on a phone, and "Esc to close"
-     is a lie in page mode where there is nothing to close. */
-  (function () {
-    var coarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
-    if (coarse) return;
-    $('.hint').innerHTML = 'Space to pull' + (PAGE ? '' : ' &middot; Esc to close');
-  })();
-
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
