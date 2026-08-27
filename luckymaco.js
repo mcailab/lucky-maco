@@ -311,18 +311,18 @@
     '.marquee img{cursor:pointer;-webkit-tap-highlight-color:transparent}',
 
     /* marquee — the lit topper above the reels */
-    '.marquee{display:flex;align-items:center;justify-content:center;gap:11px;',
-    'margin:4px 0 14px;padding:10px 18px;border-radius:16px;',
+    '.marquee{display:flex;align-items:center;justify-content:center;gap:13px;',
+    'margin:4px 0 20px;padding:14px 22px;border-radius:18px;',
     'background:var(--mq);border:1px solid var(--gold-soft);',
     'box-shadow:var(--mq-sh);position:relative}',
-    '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:16px;',
+    '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:18px;',
     'pointer-events:none;box-shadow:0 0 32px var(--glow2);',
     'animation:marquee 3.6s ease-in-out infinite}',
     /* A light travelling around the INSIDE edge of the box. A conic gradient is
        spun behind a ring-shaped mask, so only the border strip shows it. Where
        mask-composite is unsupported the mask simply does not apply and it reads
        as a soft glow behind the box instead — still fine, just less defined. */
-    '.mglow{position:absolute;inset:0;border-radius:16px;pointer-events:none;',
+    '.mglow{position:absolute;inset:0;border-radius:18px;pointer-events:none;',
     'overflow:hidden;padding:3px;z-index:0;',
     '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
     '-webkit-mask-composite:xor;',
@@ -362,11 +362,11 @@
     'box-shadow:var(--win-sh),0 0 22px -2px var(--glow2)}',
     '.window.live .band{animation:bandlit .9s ease-in-out infinite}',
     '@keyframes marquee{0%,100%{opacity:.28}50%{opacity:1}}',
-    '.marquee img{width:30px;height:30px;flex:none;display:block;',
+    '.marquee img{width:36px;height:36px;flex:none;display:block;',
     'filter:drop-shadow(0 2px 7px rgba(233,152,43,.55))}',
     '.mq{display:flex;flex-direction:column;line-height:1}',
-    '.mq-name{font-size:20px;font-weight:800;letter-spacing:.005em;color:var(--gold)}',
-    '.mq-sub{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;',
+    '.mq-name{font-size:23px;font-weight:800;letter-spacing:.005em;color:var(--gold)}',
+    '.mq-sub{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;',
     'color:var(--mut);margin-top:4px}',
 
     /* hopper — the machine's visible supply of Macoji, sitting above the reels.
@@ -420,9 +420,22 @@
     '.pip.r{right:2px;border-right:8px solid var(--gold-lit)}',
 
     '.labels{display:flex;gap:8px;justify-content:center;margin-top:8px}',
-    '.labels span{width:84px;text-align:center;font-size:10px;letter-spacing:.08em;',
-    'text-transform:uppercase;color:var(--faint)}',
+    /* These name the three parts of the day, so they must be readable. They were
+       on --faint, the tone reserved for near-invisible hints. Also pinned to 84px
+       while the cells shrink to 66px on mobile, so they no longer lined up. */
+    '.labels span{width:var(--cell);text-align:center;font-size:10.5px;font-weight:700;',
+    'letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}',
 
+    '.share{display:flex;align-items:center;justify-content:center;gap:7px;',
+    'margin:10px auto 0;padding:8px 16px;border-radius:999px;cursor:pointer;',
+    'border:1px solid var(--gold-soft);background:transparent;color:var(--gold);',
+    'font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;',
+    '-webkit-tap-highlight-color:transparent;transition:background .15s,transform .12s}',
+    '.share:hover{background:var(--gold-soft)}',
+    '.share:active{transform:scale(.95)}',
+    '.share[hidden]{display:none}',
+    '.share svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;',
+    'stroke-linecap:round;stroke-linejoin:round}',
     '.msg{min-height:56px;display:grid;place-items:center;text-align:center;margin-top:12px;padding:0 4px}',
     '.msg b{display:block;font-size:19px;letter-spacing:.03em;white-space:nowrap}',
     '.msg b img{width:25px;height:25px;vertical-align:-6px;margin-right:7px}',
@@ -614,6 +627,9 @@
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
+        '<button class="share" hidden>' +
+          '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
+          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
@@ -712,6 +728,220 @@
   var hShake = function () { shakeBuzzed = true; buzz([45, 70, 25]); };
   var hPair  = function () { buzz([30, 45, 30]); };
   var hJack  = function () { buzz([70, 45, 70, 45, 70, 45, 90, 60, 320]); };  // long finish
+
+  /* ── share card ───────────────────────────────────────────────────────────
+     Redrawn on a canvas rather than screenshotted: html2canvas cannot see into a
+     shadow root reliably and would cost ~200KB. Every element is read straight
+     off the live DOM — its box, its size, its rotation — so the card is a true
+     copy of the machine you are looking at, pile and all. */
+  var CARD_W = 1080, EMBED_HOME = 'https://lucky.mcai.dev';
+
+  function rrect(c, x, y, w, h, r) {
+    c.beginPath();
+    if (c.roundRect) { c.roundRect(x, y, w, h, r); return; }
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);         c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function cssVar(n) { return getComputedStyle(host).getPropertyValue(n).trim(); }
+
+  /* Angle out of a computed transform, so rotated sprites land as they appear. */
+  function angleOf(el) {
+    var m = getComputedStyle(el).transform;
+    if (!m || m === 'none') return 0;
+    var p = m.match(/matrix\(([^)]+)\)/);
+    if (!p) return 0;
+    var v = p[1].split(',');
+    return Math.atan2(parseFloat(v[1]), parseFloat(v[0]));
+  }
+
+  function shareCanvas() {
+    var box = cab.getBoundingClientRect();
+    var SC = CARD_W / box.width;
+    var FOOT = 74;
+    var cv = document.createElement('canvas');
+    cv.width = CARD_W;
+    cv.height = Math.round(box.height * SC) + FOOT;
+    var c = cv.getContext('2d');
+    var dark = host.getAttribute('data-theme') === 'dark';
+
+    var rel = function (el) {
+      var r = el.getBoundingClientRect();
+      return { x: (r.left - box.left) * SC, y: (r.top - box.top) * SC,
+               w: r.width * SC, h: r.height * SC,
+               cx: (r.left + r.width / 2 - box.left) * SC,
+               cy: (r.top + r.height / 2 - box.top) * SC };
+    };
+    var panel = function (el, fill, stroke, radius) {
+      var r = rel(el);
+      rrect(c, r.x, r.y, r.w, r.h, radius * SC);
+      if (fill) { c.fillStyle = fill; c.fill(); }
+      if (stroke) { c.strokeStyle = stroke; c.lineWidth = 2 * SC; c.stroke(); }
+      return r;
+    };
+    var sprite = function (img) {
+      if (!img.complete || !img.naturalWidth) return;
+      var r = rel(img);
+      var w = img.offsetWidth * SC, h = img.offsetHeight * SC;
+      c.save(); c.translate(r.cx, r.cy); c.rotate(angleOf(img));
+      c.drawImage(img, -w / 2, -h / 2, w, h); c.restore();
+    };
+    /* Canvas resolves the font stack differently from the DOM, so text drawn at
+       the same px size comes out wider and spills over its neighbours. Measure
+       and shrink to the width the browser actually gave it. */
+    var text = function (str, x, y, font, fill, maxW, align) {
+      var m = font.match(/([\d.]+)px/);          // "800 47px" -> 47, not 800
+      var size = m ? parseFloat(m[1]) : 16;
+      var fam = ' ui-rounded, -apple-system, "Segoe UI", system-ui, sans-serif';
+      c.font = font + fam;
+      if (maxW && c.measureText(str).width > maxW) {
+        size = size * maxW / c.measureText(str).width;
+        c.font = font.replace(/[\d.]+px/, size.toFixed(1) + 'px') + fam;
+      }
+      c.fillStyle = fill; c.textAlign = align || 'center'; c.textBaseline = 'middle';
+      c.fillText(str, x, y);
+    };
+
+    /* cabinet */
+    var g = c.createLinearGradient(0, 0, 0, cv.height);
+    if (dark) { g.addColorStop(0, '#22305F'); g.addColorStop(1, '#121A38'); }
+    else      { g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#F2F5FA'); }
+    c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+
+    var gold = cssVar('--gold') || '#FFD772';
+    var lit  = cssVar('--gold-lit') || '#FFC96B';
+    var mut  = cssVar('--mut') || 'rgba(255,255,255,.62)';
+    var txt  = cssVar('--txt') || '#fff';
+    var line = cssVar('--cab-br') || 'rgba(255,255,255,.1)';
+
+    /* marquee */
+    var mr = panel(marquee, dark ? 'rgba(255,201,107,.10)' : 'rgba(233,152,43,.12)',
+                   cssVar('--gold-soft') || lit, 18);
+    sprite(mark);
+    var nm = rel($('.mq-name'));
+    text($('.mq-name').textContent, nm.cx, nm.cy,
+         '800 ' + (23 * SC).toFixed(0) + 'px', gold, nm.w);
+    var sb = rel($('.mq-sub'));
+    c.save(); c.letterSpacing = (2.1 * SC).toFixed(1) + 'px';
+    text($('.mq-sub').textContent.toUpperCase(), sb.cx, sb.cy,
+         '600 ' + (9.5 * SC).toFixed(0) + 'px', mut, sb.w);
+    c.restore();
+
+    /* hopper, then whatever is in it */
+    panel(hopper, dark ? 'rgba(255,255,255,.05)' : 'rgba(27,42,91,.05)', line, 12);
+    var i, kids = hstock.children;
+    for (i = 0; i < kids.length; i++) sprite(kids[i]);
+
+    /* reel window: the pile if there is one, otherwise the grid */
+    var win = $('.window');
+    panel(win, dark ? 'rgba(20,28,60,.9)' : 'rgba(251,252,254,.95)', lit, 18);
+    c.save(); var wr = rel(win);
+    rrect(c, wr.x, wr.y, wr.w, wr.h, 18 * SC); c.clip();
+    /* Draw whatever is actually inside the window. Picking cells by index assumed
+       the strip had been scrolled to its landing position, which is only true
+       after a spin — at rest the visible cells are the first three, not the ones
+       around TRAIL. Testing against live rects is right in every state. */
+    var wbox = win.getBoundingClientRect();
+    var inWindow = function (el) {
+      var q = el.getBoundingClientRect();
+      return q.bottom > wbox.top - 4 && q.top < wbox.bottom + 4;
+    };
+    if (dumpBox.children.length) {
+      for (i = 0; i < dumpBox.children.length; i++) {
+        if (inWindow(dumpBox.children[i])) sprite(dumpBox.children[i]);
+      }
+    } else {
+      for (i = 0; i < strips.length; i++) {
+        var cim = strips[i].querySelectorAll('img');
+        for (var k = 0; k < cim.length; k++) if (inWindow(cim[k])) sprite(cim[k]);
+      }
+      var bd = rel($('.band'));
+      c.strokeStyle = lit; c.lineWidth = 2 * SC;
+      rrect(c, bd.x, bd.y, bd.w, bd.h, 10 * SC); c.stroke();
+    }
+    c.restore();
+
+    /* labels */
+    var labs = root.querySelectorAll('.labels span');
+    for (i = 0; i < labs.length; i++) {
+      var lr = rel(labs[i]);
+      c.save(); c.letterSpacing = (0.8 * SC).toFixed(1) + 'px';
+      text(labs[i].textContent.toUpperCase(), lr.cx, lr.cy,
+           '700 ' + (10.5 * SC).toFixed(0) + 'px', mut, lr.w);
+      c.restore();
+    }
+
+    /* the result */
+    var b = msg.querySelector('b'), sm = msg.querySelector('small');
+    if (b) {
+      var imgs = b.querySelectorAll('img');
+      for (i = 0; i < imgs.length; i++) sprite(imgs[i]);
+      /* Range over the text node gives exactly where the browser put the words,
+         icons and all — no reconstructing the flex layout by hand. */
+      var tn = null, nodes = b.childNodes;
+      for (i = 0; i < nodes.length; i++) {
+        if (nodes[i].nodeType === 3 && nodes[i].textContent.trim()) tn = nodes[i];
+      }
+      var size = parseFloat(getComputedStyle(b).fontSize);
+      var win2 = /jackpot|win/.test(msg.className) ? gold : txt;
+      if (tn) {
+        var rg = document.createRange(); rg.selectNodeContents(tn);
+        var tr = rg.getBoundingClientRect();
+        text(tn.textContent.trim(),
+             (tr.left + tr.width / 2 - box.left) * SC,
+             (tr.top + tr.height / 2 - box.top) * SC,
+             '800 ' + (size * SC).toFixed(0) + 'px', win2, tr.width * SC);
+      }
+    }
+    if (sm) {
+      var sr = rel(sm);
+      text(sm.textContent, sr.cx, sr.cy, '500 ' + (13 * SC).toFixed(0) + 'px', mut, sr.w);
+    }
+
+    /* footer */
+    c.save(); c.letterSpacing = (2 * SC).toFixed(1) + 'px';
+    text('LUCKY.MCAI.DEV', cv.width / 2, cv.height - FOOT / 2 - 4,
+         '700 ' + (11 * SC).toFixed(0) + 'px', gold, cv.width * 0.7);
+    c.restore();
+    return cv;
+  }
+
+  function shareText() {
+    var b = msg.querySelector('b'), sm = msg.querySelector('small');
+    return (b ? b.textContent.trim() : 'Lucky Maco') +
+           (sm ? ' — ' + sm.textContent.trim() : '') + '\n' + EMBED_HOME;
+  }
+
+  function shareResult() {
+    var cv = shareCanvas();
+    cv.toBlob(function (blob) {
+      if (!blob) return;
+      var file = null;
+      try { file = new File([blob], 'lucky-maco.png', { type: 'image/png' }); } catch (e) {}
+      var payload = { title: 'Lucky Maco', text: shareText() };
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: payload.title, text: payload.text })
+          ['catch'](function () {});
+        return;
+      }
+      if (navigator.share) {
+        navigator.share(payload)['catch'](function () { saveCard(blob); });
+        return;
+      }
+      saveCard(blob);
+    }, 'image/png');
+  }
+
+  function saveCard(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'lucky-maco.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    try { navigator.clipboard && navigator.clipboard.writeText(shareText()); } catch (e) {}
+    toast('<b>' + LOCK_OPEN + 'Card saved</b><small>and the text is on your clipboard</small>', 2000);
+  }
 
   /* ── sound ────────────────────────────────────────────────────────────────
      Synthesised with WebAudio — no files, nothing to load, ~1KB of code. The
@@ -1013,6 +1243,7 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
+    $('.share').hidden = true;
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
     idleShowing = false;                         // a result replaces the prompt
@@ -1087,6 +1318,7 @@
     lastResult = res;
     stopSpinSound();
     lever.classList.remove('busy');
+    $('.share').hidden = false;                  // there is now something to share
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
     var r = res.reels;
@@ -1590,6 +1822,10 @@
     document.addEventListener('pointerdown', arm1);
     document.addEventListener('keydown', arm1);
   } else {
+  $('.share').addEventListener('click', function (e) {
+    e.stopPropagation(); shareResult();
+  });
+
   fab.addEventListener('click', open);
     $('.close').addEventListener('click', close);
     scrim.addEventListener('click', function (e) { if (e.target === scrim) close(); });
@@ -1609,6 +1845,7 @@
 
   window.LuckyMaco = {
     open: open, close: close, pull: yank,   // pull('TRIPLE'|'PAIR'|'ALLDIFF')
+    share: shareResult, card: shareCanvas,
     configure: configure, config: snapshot, draw: draw, pool: function () { return POOL.slice(); },
     mute: function (v) { sound = !v; paintSound(); return !sound; },
     theme: function (t) {
