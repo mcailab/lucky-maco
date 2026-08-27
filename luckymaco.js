@@ -289,36 +289,36 @@
     /* 40 cabinet padding + 16 window padding + 8 for the two gaps between cells,
        so the three cells actually fill the window instead of floating in it. */
     '--cell:min(var(--maxcell), calc((var(--cabw) - 64px) / 3));',
-    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px;',
+    '--hop:90px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px;',
     /* The hopper is a separate box, not part of the title glass or the reels,
        so it gets more air than the standard gap on both sides. At --gap it read
        as stuck to the marquee above it. */
     '--hopgap:calc(var(--gap) + 9px);',
 '--belly:54px}',
     '@media (min-width:620px) and (min-height:880px){',
-    ':host{--cabw:440px;--maxcell:104px;--hop:80px;--mqpad:17px;--msg:58px;',
+    ':host{--cabw:440px;--maxcell:104px;--hop:98px;--mqpad:17px;--msg:58px;',
 '--sharepad:9px;--gap:18px;--belly:60px}}',
-    '@media (max-height:842px){:host{--maxcell:70px;--hop:62px;--mqpad:12px;',
+    '@media (max-height:880px){:host{--maxcell:70px;--hop:76px;--mqpad:12px;',
 '--msg:48px;--sharepad:7px;--gap:14px;--belly:54px}}',
-    '@media (max-height:772px){:host{--maxcell:60px;--hop:54px;--mqpad:10px;',
+    '@media (max-height:810px){:host{--maxcell:60px;--hop:66px;--mqpad:10px;',
 '--msg:44px;--sharepad:6px;--gap:12px;--belly:48px}}',
-    '@media (max-height:707px){:host{--maxcell:52px;--hop:46px;--mqpad:9px;',
+    '@media (max-height:745px){:host{--maxcell:52px;--hop:56px;--mqpad:9px;',
 '--msg:38px;--sharepad:5px;--gap:10px;--belly:42px}}',
-    '@media (max-height:647px){:host{--maxcell:44px;--hop:38px;--mqpad:7px;',
+    '@media (max-height:685px){:host{--maxcell:44px;--hop:47px;--mqpad:7px;',
 '--msg:34px;--sharepad:4px;--gap:8px;--belly:36px}}',
-    '@media (max-height:587px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
+    '@media (max-height:625px){:host{--maxcell:40px;--hop:42px;--mqpad:6px;',
     '--msg:30px;--sharepad:4px;--gap:8px;--belly:31px}}',
-    '@media (max-height:552px){:host{--belly:27px;--maxcell:32px;--hop:28px;--mqpad:5px;',
+    '@media (max-height:590px){:host{--belly:27px;--maxcell:32px;--hop:35px;--mqpad:5px;',
     '--msg:26px;--sharepad:3px;--gap:6px}}',
-    '@media (max-height:512px){:host{--maxcell:26px;--hop:22px;--mqpad:4px;',
+    '@media (max-height:550px){:host{--maxcell:26px;--hop:28px;--mqpad:4px;',
     '--msg:22px;--sharepad:3px;--gap:5px}}',
     /* A phone on its side has no room for a portrait cabinet. Drop the hopper and
        the time-of-day labels rather than clipping the reels, which are the part
        you actually need. */
-    '@media (max-height:482px){.marquee img{width:24px;height:24px}',
+    '@media (max-height:520px){.marquee img{width:24px;height:24px}',
     '.mq-name{font-size:16px}',
     ':host{--maxcell:28px;--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
-    '@media (max-height:422px){:host{--maxcell:22px;--msg:16px}}',
+    '@media (max-height:460px){:host{--maxcell:22px;--msg:16px}}',
     ':host,*{box-sizing:border-box}',
 
     '.fab{position:fixed;bottom:16px;' + (LEFT ? 'left:16px;' : 'right:16px;') +
@@ -653,9 +653,12 @@
     /* Not disabled — the bar fills as a player earns luck, and only DRAGGING it
        belongs to Game Changer. Dimming it and padlocking it said the opposite. */
     '.luck.locked{pointer-events:none}',
+    /* The plate's two pieces of colour. Grey read as switched off next to a
+       bar that lights up orange, so the name and the marker keep Maco's own
+       colour and the bar alone carries the level. */
     '.dname{display:flex;align-items:center;gap:4px;flex:none;',
     'font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;',
-    'color:var(--mut);transition:color .25s}',
+    'color:var(--gold);transition:color .25s}',
     '.luck.twins .dname{color:var(--gold)}',
     '.luck.jack .dname{color:#FF8A8A}',
     '.track{position:relative;flex:1;height:14px;border-radius:8px;cursor:pointer;',
@@ -677,9 +680,8 @@
     /* The marker on the right IS the readout — it wakes up as the bar fills and
        is fully lit at the top. No number: the bar already is one. */
     '.dface{width:17px;height:17px;flex:none;display:block;',
-    'filter:grayscale(1) brightness(1.4);transform:scale(.88);',
-    'transition:filter .3s,transform .3s}',
-    '.luck.on .dface{filter:grayscale(.5);transform:scale(.96)}',
+    'transform:scale(.9);transition:filter .3s,transform .3s}',
+    '.luck.on .dface{transform:scale(1)}',
     '.luck.hot .dface{filter:none;transform:scale(1.1);',
     'animation:facehot 1.4s ease-in-out infinite}',
     '@keyframes facehot{0%,100%{filter:none}',
@@ -784,7 +786,12 @@
     /* Unlit lamps are a colour conversion, never transparency: fully opaque,
        just drained of colour. Fading them made them vanish against both themes;
        greyscale keeps the whole face readable, it is simply switched off. */
-    '.lamp{width:calc(var(--belly) * .60);height:calc(var(--belly) * .60);opacity:1;',
+    /* Sized by the row, not by the panel alone: ten lamps at 60% of the belly
+       height are wider than the cabinet. Whichever is smaller wins, so the count
+       can change without the row ever overflowing. */
+    '.lamp{width:min(calc(var(--belly) * .60),',
+    'calc((100% - 26px) / var(--lampn,10) - 3px));',
+    'height:auto;aspect-ratio:1;opacity:1;',
     'filter:grayscale(1) brightness(.78) contrast(.9);',
     'transition:filter .5s,transform .4s}',
     '.lamp.lit{filter:none;',
@@ -831,7 +838,7 @@
            '.copy{display:block}' +
            /* Declared AFTER the rule it overrides — same specificity, so order
               decides, and the hide has to come last or it never applies. */
-           '@media (max-height:482px){.scrim{padding-top:64px;padding-bottom:20px}' +
+           '@media (max-height:520px){.scrim{padding-top:64px;padding-bottom:20px}' +
            '.copy,.luck{display:none}}' : ''
   ].join('');
 
@@ -917,6 +924,9 @@
   function remembered() { try { return localStorage.getItem(STORE); } catch (e) { return null; } }
   function remember(v) { try { localStorage.setItem(STORE, v); } catch (e) {} }
 
+  /* Preferences survive a reload; the odds do not — those are a demo setting,
+     and a machine that quietly remembers 40% jackpots from last week is a trap. */
+  var PERSIST = { packing: 1, stock: 1, shakeForce: 1 };
   ['packing', 'stock', 'shakeForce'].forEach(function (k) {
     try {
       var v = parseFloat(localStorage.getItem('luckymaco:' + k));
@@ -1311,8 +1321,8 @@
     if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
                    'in Maco faces.' + tail;
     if (r.pattern === 'WILDFIRE') {
-      return 'LUCKY MACO! Eight lamps set every Maco loose \u2014 the rarest thing ' +
-             'the machine does, about one pull in twenty-five.' + tail;
+      return 'LUCKY MACO! Ten lamps set every Maco loose \u2014 the rarest thing ' +
+             'the machine does.' + tail;
     }
     var line = 'My ' + day + ' on Lucky Maco: ' +
       label(r.reels[0]) + ' morning, ' +
@@ -1481,6 +1491,30 @@
     [[523, 659], [587, 740], [659, 831], [784, 1047], [1047, 1319]].forEach(function (pair, i) {
       pair.forEach(function (f) { tone(f, 0.4, 'triangle', 0.13, 0, i * 0.13); });
     });
+  };
+  /* Luck going up: a short rising arpeggio with a soft noise swell under it, so
+     it reads as the machine winding up rather than a notification chirp. */
+  var sLuckUp = function () {
+    chime([523, 659, 784, 1047, 1319], 55, 0.22, 0.075, 'triangle');
+    noise(0.4, 0.05, 500, 2, 2600);
+  };
+  /* Luck going down: the same shape backwards, quieter and duller. Falling, not
+     failing — a win is what costs you a level, so it must not sound like a loss. */
+  var sLuckDown = function () {
+    chime([784, 659, 523], 70, 0.2, 0.05, 'sine');
+    noise(0.26, 0.035, 1600, 2, 400);
+  };
+  /* Maco appearing to speak: one soft pop, the sound of him arriving. */
+  var sPop = function () {
+    tone(320, 0.09, 'sine', 0.09, 900);
+    noise(0.07, 0.06, 900, 3, 2200, 0.02);
+  };
+  /* Reset: the whole cabinet powering down and coming back. */
+  var sReset = function () {
+    tone(700, 0.22, 'sine', 0.08, 180);              // wind down
+    noise(0.3, 0.06, 1800, 2, 260);
+    chime([392, 523, 784], 60, 0.24, 0.07, 'triangle');   // and back up
+    noise(0.18, 0.04, 400, 2, 2200, 0.28);
   };
   /* Falling Macoji: wooden blocks tumbling, not metal. */
   function sFall() {
@@ -1703,12 +1737,15 @@
      of the wins that got you there. Twins lights two, a jackpot lights three —
      otherwise the rarer result would be worth no more than the common one.
 
-       0.10 x 2  +  0.05 x 3  =  0.35 lamps per pull  ->  eight lit every ~23 pulls */
+       0.10 x 2  +  0.05 x 3  =  0.35 lamps per pull  ->  ten lit every ~31 pulls at
+       x1, and a good deal sooner once the Luck bar is up, which is the point of
+       there being ten of them rather than eight. */
   var WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
                'eight', 'nine', 'ten'];
   function word(n) { return WORDS[n] || String(n); }
-  var LAMPS = 8, lamps = 0;
+  var LAMPS = 10, lamps = 0;
   var belly = $('.belly'), lampRow = belly;
+  belly.style.setProperty('--lampn', String(LAMPS));
 
   try {
     var saved = parseInt(localStorage.getItem('luckymaco:lamps'), 10);
@@ -2090,7 +2127,10 @@
        much closer. */
     if (res.pattern === 'TRIPLE' || res.pattern === 'PAIR') {
       dryRun = 0;
-      if (!unlocked) { if (luckLevel > 0) setLuck(luckLevel - 1); rearm(); }
+      if (!unlocked) {
+        if (luckLevel > 0) { setLuck(luckLevel - 1); setTimeout(sLuckDown, 900); }
+        rearm();
+      }
     } else if (++dryRun >= 3) {
       /* after the result has landed, so he is answering it rather than talking
          over it */
@@ -2361,12 +2401,7 @@
         '<tr><td>Twins &mdash; 2 identical</td><td>' +
           step('twins', 0.01, pct(CFG.twins)) + '</td></tr>' +
         '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) + '</td></tr>' +
-        /* With the Luck bar up, the three rows above are no longer what the
-           machine is actually doing — say so rather than quietly lying. */
-        (luckLevel > 0
-          ? '<tr><td>Luck &times;' + (1 + luckLevel) + '</td><td>' +
-              pct(odds().triple) + ' / ' + pct(odds().twins) + '</td></tr>'
-          : '') +
+
 
       '</table>' +
       '<h3>Machine</h3><table>' +
@@ -2423,14 +2458,21 @@
         e.stopPropagation();
         var k = b.dataset.k || 'shakeForce', d = parseFloat(b.dataset.d);
         var lo = RANGE[k][0], hi = RANGE[k][1];
-        var v = Math.max(lo, Math.min(hi, Math.round((CFG[k] + d) * 10) / 10));
+        /* Snap to the grid this button steps on, not to one decimal place. At a
+           step of 0.01 the old rounding turned 5% + 1% into 10% and 5% - 1%
+           into zero — the odds buttons had never worked. */
+        var step = Math.abs(d) || 1;
+        var v = Math.max(lo, Math.min(hi, Math.round((CFG[k] + d) / step) * step));
+        v = Math.round(v * 1000) / 1000;         // float dust
+        var was = CFG[k];
         CFG[k] = v;
-        try { localStorage.setItem('luckymaco:' + k, String(v)); } catch (err) {}
+        /* Undo rather than save a split that does not add up. */
+        if ((k === 'triple' || k === 'twins') && CFG.triple + CFG.twins > 0.95) CFG[k] = was;
+        if (PERSIST[k]) {
+          try { localStorage.setItem('luckymaco:' + k, String(CFG[k])); } catch (err) {}
+        }
         if (k === 'packing' || k === 'stock') {
           fillHopper(); pourHopper();            // re-heap so you can see it at once
-        }
-        if (k === 'triple' || k === 'twins') {   // keep the split coherent
-          if (CFG.triple + CFG.twins > 0.95) CFG[k] = v - d;
         }
         if (k === 'shakeForce') peakMag = 0;
         buildSheet();
@@ -2506,19 +2548,19 @@
       localStorage.removeItem('luckymaco:lamps');
       localStorage.removeItem('luckymaco:sound');
       localStorage.removeItem(STORE);
-      localStorage.removeItem('luckymaco:packing');
-      localStorage.removeItem('luckymaco:stock');
-      localStorage.removeItem('luckymaco:shakeForce');
+      for (var pk in RANGE) localStorage.removeItem('luckymaco:' + pk);
     } catch (err) {}
     try { sessionStorage.removeItem('luckymaco:test'); } catch (err) {}
 
-    /* 3. back to the defaults it shipped with */
-    CFG.packing = DEFAULTS.packing;
-    CFG.stock = DEFAULTS.stock;
-    CFG.shakeForce = DEFAULTS.shakeForce;
+    /* 3. back to the defaults it shipped with — every tunable, not a hand-kept
+       list of three that fell behind the moment the odds became editable */
+    for (var ck in RANGE) CFG[ck] = DEFAULTS[ck];
+    peakMag = 0;
     sound = true; paintSound();
     if (!THEME_PINNED) { CFG.theme = 'auto'; applyTheme(); paintToggle(); }
-    setTest(false);                    // clears luck, re-arms, locks the deck
+    setTest(false);                    // locks the deck and re-arms the streak
+    setLuck(0, true);                  // and the luck itself, however it was earned
+    dryRun = 0;
     lamps = 0; drawLamps(); saveLamps();
     lastResult = null;
     clearDrops();
@@ -2532,6 +2574,7 @@
     $('.share').classList.add('off');
     sharePitch();
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">All Reset</b>', 2400);
+    sReset();
   }
 
   var tog = $('.tog');
@@ -2680,7 +2723,10 @@
     w.classList.toggle('boost', lv > 0 && lv < TOP);
     w.classList.toggle('boostjack', lv === TOP);
     track.setAttribute('aria-valuetext', 'x' + (1 + lv));
-    if (!quiet && lv !== was) tone(500 + f * 700, 0.05, 'square', 0.07);
+    if (!quiet && lv !== was) {
+      noise(0.03, 0.16, 1700, 6);                    // the notch it clicks into
+      tone(420 + lv * 190, 0.06, 'square', 0.07);
+    }
   }
   setLuck(0, true);                           // stamp the marker's starting state
 
@@ -2708,20 +2754,21 @@
   track.addEventListener('click', function (e) { e.stopPropagation(); });
 
   /* ── how a player earns luck ───────────────────────────────────────────
-     A win spends ONE level, not the lot, and re-arms both ways of earning —
-     so luck is a thing you build, cash in a little of, and build back, rather
-     than something wiped every time the machine pays out.
-     A player can never pass level 3: the top notch stays a Game Changer thing.
-     Without that cap the re-arming would let anyone ratchet to the top. */
+     A win spends ONE level, not the lot, and re-arms the dry-streak reward — so
+     luck is a thing you build, cash a little of in, and build back.
+     Sharing pays EVERY time rather than once: a share is worth the same to us
+     each time it happens, and rationing it made the button lie about itself.
+     A player still cannot pass level 3 either way; the top notch stays a Game
+     Changer thing. */
   var PLAYER_TOP = 3;
-  var earned = { streak: false, share: false };
+  var earned = { streak: false };             // sharing is not rationed
   var dryRun = 0, granting = false;
-  function rearm() { earned.streak = false; earned.share = false; dryRun = 0; sharePitch(); }
+  function rearm() { earned.streak = false; dryRun = 0; sharePitch(); }
   /* Nobody guesses that sharing pays. While it is unclaimed the button says so
      in its own label and glows; once it has paid it goes back to being a plain
      Share button, because then it is telling you nothing you can use. */
   function sharePitch() {
-    var b = $('.share'), on = !unlocked && !earned.share && luckLevel < PLAYER_TOP;
+    var b = $('.share'), on = !unlocked && luckLevel < PLAYER_TOP;
     b.classList.toggle('pays', on);
     $('.slabel').textContent = on ? 'Share to boost luck' : 'Share';
   }
@@ -2731,14 +2778,16 @@
      held shut so the pull cannot land in the middle of it. */
   function grantLuck(line, why) {
     if (unlocked || granting || luckLevel >= PLAYER_TOP) return false;
-    if (earned[why]) return false;
-    earned[why] = true;
+    if (why && earned[why]) return false;
+    if (why) earned[why] = true;
     granting = true;
     lever.classList.add('busy');
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
           '<small>Luck Boost</small>', 3400);
-    sWin();
-    setTimeout(function () { setLuck(luckLevel + 1); sharePitch(); }, 620);
+    sPop();                                          // he lands
+    setTimeout(function () {
+      setLuck(luckLevel + 1); sharePitch(); sLuckUp();
+    }, 620);
     setTimeout(function () {
       granting = false;
       lever.classList.remove('busy');
@@ -2779,7 +2828,7 @@
     shareResult();
     /* On the click, not the outcome — sharing can be cancelled, and on a desktop
        it falls through to saving the card. It pays once either way. */
-    setTimeout(function () { grantLuck('Thanks! More luck for you', 'share'); }, 500);
+    setTimeout(function () { grantLuck('Thanks! More luck for you', null); }, 500);
   });
 
   if (PAGE) {
