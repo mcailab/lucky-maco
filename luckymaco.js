@@ -1019,7 +1019,10 @@
        picture worth sending. Drawn from the resting places recorded as they fell,
        not from live rects, so it does not matter whether the drop animation has
        finished — or even started — when the card is made. */
-    var pileCard = lastResult && lastResult.pattern === 'TRIPLE' &&
+    /* A Wildfire leaves the wheel full of whole Macos, so its card has to show the
+       pile too — drawing the reels there would contradict the machine. */
+    var pileCard = lastResult &&
+                   (lastResult.pattern === 'TRIPLE' || lastResult.pattern === 'WILDFIRE') &&
                    lastPile.length && dumpBox.children.length === lastPile.length;
     if (pileCard) {
       for (i = 0; i < lastPile.length; i++) {
@@ -1150,8 +1153,8 @@
     if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
                    'in Maco faces.' + tail;
     if (r.pattern === 'WILDFIRE') {
-      return 'WILDFIRE on Lucky Maco \u2014 five wins lit the whole machine and ' +
-             'Maco came out. That is about one pull in twenty-five.' + tail;
+      return 'LUCKY MACO! Five wins set every Maco loose \u2014 the rarest thing the ' +
+             'machine does, about one pull in twenty-five.' + tail;
     }
     var line = 'My ' + day + ' on Lucky Maco: ' +
       label(r.reels[0]) + ' morning, ' +
@@ -1448,8 +1451,8 @@
   /* `faces` is the list of Macoji to drop — one entry each, no repeats. It used
      to be a count, with each drop picking at random WITH replacement, so the same
      face turned up several times in one pile. */
-  function dump(faces, empty) {
-    var count = faces.length;
+  function dump(faces, empty, forceSrc) {
+    var count = forceSrc ? faces : faces.length;
     var box = $('.window').getBoundingClientRect();
     var H = box.height, W = box.width;
     clearDrops();                                // any dump still in flight
@@ -1463,14 +1466,14 @@
     for (var i = 0; i < spots.length; i++) {
       (function (i) {
         var spot = spots[i];
-        var iconName = faces[i];
+        var iconName = forceSrc ? null : faces[i];
         var el = document.createElement('img');
         el.className = 'drop';
-        el.src = ICON(iconName);
+        el.src = forceSrc || ICON(iconName);
         el.style.width = el.style.height = S + 'px';
         el.style.left = (spot.x - S / 2).toFixed(1) + 'px';
         el.style.top = (spot.y - FACE_Y * S).toFixed(1) + 'px';   // resting place
-        lastPile.push({ x: spot.x, y: spot.y, n: iconName, r: 0 });
+        lastPile.push({ x: spot.x, y: spot.y, n: iconName, r: 0, body: !!forceSrc });
         dumpBox.appendChild(el);
         var floor = 0;
         var turn = (Math.random() - 0.5) * 76;             // tossed, not filed away
@@ -1543,18 +1546,22 @@
       ], { duration: 420, delay: i * 130, easing: 'ease-out' });
     }
 
-    /* 2. they collapse inward, as if feeding whatever is about to appear */
+    /* 2. they break out. The point of the game is to set Maco loose, so they lift
+       up and away rather than collapsing inward as if being consumed. */
     var mid = box.left + box.width / 2;
     setTimeout(function () {
       for (var k = 0; k < lampsEls.length; k++) {
-        var r = lampsEls[k].getBoundingClientRect();
+        var sway = (k - (lampsEls.length - 1) / 2) * 26;
         lampsEls[k].animate([
-          { transform: 'translateX(0) scale(1)', opacity: 1 },
-          { transform: 'translateX(' + (mid - (r.left + r.width / 2)) + 'px) scale(.2)',
-            opacity: 0 }
-        ], { duration: 460, easing: 'cubic-bezier(.6,0,.8,.4)', fill: 'forwards' });
+          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(' + (sway * .4) + 'px,-36px) scale(1.28) rotate(' +
+            (sway * .18) + 'deg)', opacity: 1, offset: .35 },
+          { transform: 'translate(' + sway + 'px,-200px) scale(.5) rotate(' +
+            (sway * .5) + 'deg)', opacity: 0 }
+        ], { duration: 720, delay: k * 60,
+             easing: 'cubic-bezier(.3,-0.2,.5,1)', fill: 'forwards' });
       }
-    }, lampsEls.length * 130 + 260);
+    }, lampsEls.length * 130 + 240);
 
     /* 3. Maco bursts out of the belly, grows, and rises up the page */
     setTimeout(function () {
@@ -1586,21 +1593,31 @@
     }, lampsEls.length * 130 + 640);
 
     /* 4. and the machine goes up: Macoji down the whole page */
-    setTimeout(rainDown, lampsEls.length * 130 + 1400);
+    /* The machine has to visibly give everything up, or releasing the five reads
+       as nothing happening: the hopper opens, the reels go dark, and what was
+       inside comes back as whole Macos filling the wheel. */
+    setTimeout(function () {
+      emptyHopper();
+      $('.window').classList.add('emptied');
+    }, lampsEls.length * 130 + 900);
+    setTimeout(function () {
+      dump(28, true, BODY);
+      rainDown(BODY);
+    }, lampsEls.length * 130 + 1500);
 
     /* 5. the result line becomes the Wildfire's own */
     setTimeout(function () {
       lastResult = { pattern: 'WILDFIRE', reels: lastResult ? lastResult.reels : [] };
       msg.className = 'msg jackpot';
-      msg.innerHTML = '<b><img src="' + BODY + '" alt="">WILDFIRE</b>' +
-        '<small>Five wins &mdash; Maco is out, and all of ' + today() + ' with him</small>';
+      msg.innerHTML = '<b><img src="' + BODY + '" alt="">LUCKY MACO!</b>' +
+        '<small>You&rsquo;re super lucky today</small>';
       fitLine();
       $('.share').classList.remove('off');
       setTimeout(prepareCard, 80);
     }, lampsEls.length * 130 + 2100);
   }
 
-  function rainDown() {
+  function rainDown(src) {
     var layer = document.createElement('div');
     layer.className = 'wild';
     root.appendChild(layer);
@@ -1609,7 +1626,7 @@
     for (var i = 0; i < n; i++) {
       (function (i) {
         var el = document.createElement('img');
-        el.src = ICON(faces[i % faces.length]);
+        el.src = src || ICON(faces[i % faces.length]);
         el.style.left = (Math.random() * (W - 52)).toFixed(0) + 'px';
         el.style.top = '-70px';
         layer.appendChild(el);
