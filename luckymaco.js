@@ -557,6 +557,12 @@
     '-webkit-tap-highlight-color:transparent;',
     'transition:background .15s,transform .12s,opacity .22s}',
     '.share:hover{background:var(--gold-soft)}',
+    /* worth something right now */
+    '.share.pays{border-color:var(--gold-lit);color:var(--gold-lit);',
+    'animation:paysglow 2s ease-in-out infinite}',
+    '@keyframes paysglow{0%,100%{box-shadow:0 0 0 0 rgba(255,201,107,0)}',
+    '50%{box-shadow:0 0 13px 1px var(--glow2)}}',
+    '@media (prefers-reduced-motion:reduce){.share.pays{animation:none}}',
     '.share:active{transform:scale(.95)}',
     /* Always occupies its space. Using [hidden] took it out of the flow, so the
        cabinet grew the moment a result landed and the whole machine shifted. */
@@ -870,7 +876,8 @@
         '<div class="progress"></div>' +
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
-          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button></div>' +
+          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' +
+          '<span class="slabel">Share</span></button></div>' +
         '<div class="luck locked">' +
           '<span class="dname">Luck<svg class="dlock" viewBox="0 0 24 24">' +
             '<rect x="4" y="11" width="16" height="10" rx="2"/>' +
@@ -1720,7 +1727,7 @@
          and a tighter line on the pull that leaves a single lamp dark. */
       var left = LAMPS - lamps;
       pr.classList.toggle('close', left === 1);
-      pr.innerHTML = left === 1 ? 'One lamp from free'
+      pr.innerHTML = left === 1 ? 'One more!'
                                 : 'Light up all Maco to set them free';
     }
   }
@@ -2070,13 +2077,12 @@
        much closer. */
     if (res.pattern === 'TRIPLE' || res.pattern === 'PAIR') {
       dryRun = 0;
-      if (LUCK_RESETS_ON_WIN && !unlocked && luckLevel > 0) setLuck(0);
-      if (!unlocked) rearm();
+      if (!unlocked) { if (luckLevel > 0) setLuck(luckLevel - 1); rearm(); }
     } else if (++dryRun >= 3) {
       /* after the result has landed, so he is answering it rather than talking
          over it */
       setTimeout(function () {
-        if (grantLuck('Here, have some of mine', 'streak')) dryRun = 0;
+        if (grantLuck('Let me give you more luck!', 'streak')) dryRun = 0;
       }, 900);
     }
     if ((res.pattern === 'TRIPLE' || res.pattern === 'PAIR') && feedMeter(res)) return;
@@ -2533,7 +2539,7 @@
     $('.cog').classList.toggle('unlocked', on);
     luck.classList.toggle('locked', !on);       // the switch is there either way
     setLuck(on ? TOP : 0, true);                // unlocked arrives charged, locked empty
-    if (!on) rearm();
+    if (!on) rearm(); else sharePitch();        // Game Changer has nothing to earn
     toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
              : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
     if (on) {
@@ -2626,20 +2632,29 @@
   track.addEventListener('click', function (e) { e.stopPropagation(); });
 
   /* ── how a player earns luck ───────────────────────────────────────────
-     Each way pays once, so a player tops out at level 3 of 4 — the last notch
-     stays a Game Changer thing. A win spends the whole lot and re-arms every
-     way, which is what keeps the bar meaningful: it is a comeback, not a
-     ratchet that leaves everyone permanently lucky after five minutes. */
-  var LUCK_RESETS_ON_WIN = true;
+     A win spends ONE level, not the lot, and re-arms both ways of earning —
+     so luck is a thing you build, cash in a little of, and build back, rather
+     than something wiped every time the machine pays out.
+     A player can never pass level 3: the top notch stays a Game Changer thing.
+     Without that cap the re-arming would let anyone ratchet to the top. */
+  var PLAYER_TOP = 3;
   var earned = { streak: false, share: false };
   var dryRun = 0, granting = false;
-  function rearm() { earned.streak = false; earned.share = false; dryRun = 0; }
+  function rearm() { earned.streak = false; earned.share = false; dryRun = 0; sharePitch(); }
+  /* Nobody guesses that sharing pays. While it is unclaimed the button says so
+     in its own label and glows; once it has paid it goes back to being a plain
+     Share button, because then it is telling you nothing you can use. */
+  function sharePitch() {
+    var b = $('.share'), on = !unlocked && !earned.share && luckLevel < PLAYER_TOP;
+    b.classList.toggle('pays', on);
+    $('.slabel').textContent = on ? 'Share for luck' : 'Share';
+  }
 
   /* Every gain announces itself. A bar that creeps up while you are looking at
      the reels is a bar nobody notices — Maco says it out loud, and the lever is
      held shut so the pull cannot land in the middle of it. */
   function grantLuck(line, why) {
-    if (unlocked || granting || luckLevel >= TOP) return false;
+    if (unlocked || granting || luckLevel >= PLAYER_TOP) return false;
     if (earned[why]) return false;
     earned[why] = true;
     granting = true;
@@ -2647,13 +2662,15 @@
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
           '<small>Luck Boost</small>', 2300);
     sWin();
-    setTimeout(function () { setLuck(luckLevel + 1); }, 620);   // after he speaks
+    setTimeout(function () { setLuck(luckLevel + 1); sharePitch(); }, 620);
     setTimeout(function () {
       granting = false;
       lever.classList.remove('busy');
     }, 2400);
     return true;
   }
+  sharePitch();                               // the button's opening offer
+
   track.addEventListener('keydown', function (e) {
     var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1
           : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
@@ -2686,7 +2703,7 @@
     shareResult();
     /* On the click, not the outcome — sharing can be cancelled, and on a desktop
        it falls through to saving the card. It pays once either way. */
-    setTimeout(function () { grantLuck('Thanks for sharing me', 'share'); }, 500);
+    setTimeout(function () { grantLuck('Thanks! More luck for you', 'share'); }, 500);
   });
 
   if (PAGE) {
