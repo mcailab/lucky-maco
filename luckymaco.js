@@ -1522,6 +1522,60 @@
     chime([392, 523, 784], 60, 0.24, 0.07, 'triangle');   // and back up
     noise(0.18, 0.04, 400, 2, 2200, 0.28);
   };
+  /* ── the LUCKY MACO release ────────────────────────────────────────────
+     Six seconds had one sound in it. Each beat gets its own now, so the ear
+     follows the same story the eye does. */
+
+  /* the belly lighting up, one lamp at a time: a rising ladder, each rung a
+     little brighter than the last */
+  function sLampUp(n, step) {
+    for (var i = 0; i < n; i++) {
+      tone(392 * Math.pow(2, i / 12), 0.13, 'triangle', 0.055 + i * 0.004, 0, i * step / 1000);
+      noise(0.03, 0.05, 1400 + i * 130, 6, 0, i * step / 1000);
+    }
+  }
+  /* all of them straining at once — a low rattle under a rising whine */
+  function sRattle(ms) {
+    noise(ms / 1000, 0.09, 180, 2.2, 420);
+    tone(110, ms / 1000, 'sawtooth', 0.045, 190);
+    for (var i = 0; i * 55 < ms; i++) noise(0.016, 0.07, 900, 8, 0, i * 0.055);
+  }
+  /* one Maco getting out: a short upward whoosh, pitched a little differently
+     each time so a run of them does not sound like a machine gun */
+  function sWhoosh(delay, pitch) {
+    noise(0.24, 0.075, 300 * pitch, 1.6, 2400 * pitch, delay);
+    tone(240 * pitch, 0.2, 'sine', 0.045, 900 * pitch, delay);
+  }
+  /* the hopper floor letting go */
+  function sBurst() {
+    noise(0.05, 0.4, 900, 3, 260);
+    tone(90, 0.3, 'sine', 0.16, 45);
+    for (var i = 0; i < 4; i++) noise(0.03, 0.2, 1800 - i * 300, 7, 0, 0.02 + i * 0.03);
+  }
+  /* he lands in the window: a big warm arrival, not a jingle */
+  function sLand() {
+    tone(65, 0.5, 'sine', 0.2, 40);
+    [523, 659, 784, 1047].forEach(function (f, i) {
+      tone(f, 0.75, 'triangle', 0.1, 0, i * 0.03);
+    });
+    noise(0.5, 0.07, 400, 1.4, 3000, 0.04);
+  }
+  /* and the wave, a couple of sparkles as his hand goes up */
+  function sWave() {
+    [1568, 2093, 1760].forEach(function (f, i) {
+      tone(f, 0.16, 'sine', 0.05, 0, i * 0.13);
+    });
+  }
+  /* LUCKY MACO! — the fanfare the message lands on */
+  function sFanfare() {
+    [[523, 0], [659, 0.09], [784, 0.18], [1047, 0.27], [1319, 0.36]].forEach(function (p) {
+      tone(p[0], 0.6, 'triangle', 0.12, 0, p[1]);
+      tone(p[0] * 2, 0.5, 'sine', 0.05, 0, p[1]);
+    });
+    tone(131, 0.9, 'sine', 0.14, 0, 0.36);
+    noise(0.7, 0.05, 600, 1.2, 4000, 0.36);
+  }
+
   /* Falling Macoji: wooden blocks tumbling, not metal. */
   function sFall() {
     for (var i = 0; i < 26; i++) {
@@ -1853,6 +1907,7 @@
         { filter: 'none', transform: 'scale(1)' }
       ], { duration: 460, delay: i * 90, easing: 'ease-out' });
     }
+    sLampUp(lampsEls.length, 90);
     t = lampsEls.length * 90 + 320;
 
     /* 1b. then all eight rattle together — they know they are about to get out */
@@ -1865,11 +1920,13 @@
         { transform: 'translate(0,0) rotate(0deg)' }
       ], { duration: 420, delay: t - 120, iterations: 2, easing: 'linear' });
     }
+    setTimeout(function () { if (live()) sRattle(840); }, t - 120);
     t += 640;
 
     /* 2. each becomes a whole Maco and leaps out, one at a time */
     for (i = 0; i < lampsEls.length; i++) {
       flyOut(lampsEls[i], t + i * 130, { size: lampsEls[i].offsetWidth * 1.7 });
+      sWhoosh((t + i * 130) / 1000, 0.9 + i * 0.06);
     }
     t += lampsEls.length * 130 + 260;
 
@@ -1877,6 +1934,7 @@
     setTimeout(function () {
       if (!live()) return;
       emptyHopper();
+      sBurst();
       $('.window').classList.add('emptied');
     }, t - 200);
 
@@ -1889,10 +1947,12 @@
     }
     for (i = 0; i < stock.length; i++) {
       flyOut(stock[i], t + i * 55, { size: stock[i].offsetWidth * 1.5, hide: false });
+      if (i % 3 === 0) sWhoosh((t + i * 55) / 1000, 0.75 + (i % 5) * 0.09);
     }
     for (i = 0; i < cells.length; i++) {
       flyOut(cells[i], t + stock.length * 55 + i * 80,
              { size: cells[i].offsetWidth * 1.1, hide: false });
+      sWhoosh((t + stock.length * 55 + i * 80) / 1000, 1.15 + i * 0.05);
     }
     var lastAt = t + stock.length * 55 + cells.length * 80;
 
@@ -1925,8 +1985,9 @@
           { transform: 'rotate(6deg)' },  { transform: 'rotate(-4deg)' },
           { transform: 'rotate(0deg)' }
         ], { duration: 900, iterations: 2, easing: 'ease-in-out' });
+        sWave();
       }, 1100);
-      sJack();
+      sLand();
       lastMaco = el;                       // stays until the next pull
     }, lastAt + lastAtPause);
 
@@ -1938,6 +1999,7 @@
       msg.className = 'msg jackpot';
       msg.innerHTML = '<b><img src="' + BODY + '" alt="">LUCKY MACO!</b>' +
         '<small>I&rsquo;ll bring you fortune all day</small>';
+      sFanfare();
       fitLine();
       $('.share').classList.remove('off');
       $('.progress').classList.add('off');
@@ -2734,7 +2796,7 @@
   function setLuck(lv, quiet) {
     lv = Math.max(0, Math.min(TOP, Math.round(lv)));
     track.setAttribute('aria-valuetext', 'x' + (1 + lv));
-    if (lv === luckLevel && quiet) return;
+    if (lv === luckLevel && quiet) { sharePitch(); return; }
     var was = luckLevel;
     luckLevel = lv;
     var f = lv / TOP;
@@ -2752,6 +2814,7 @@
       noise(0.03, 0.16, 1700, 6);                    // the notch it clicks into
       tone(420 + lv * 190, 0.06, 'square', 0.07);
     }
+    sharePitch();                                    // the one place level changes
   }
   setLuck(0, true);                           // stamp the marker's starting state
 
@@ -2789,11 +2852,16 @@
   var earned = { streak: false };             // sharing is not rationed
   var dryRun = 0, granting = false;
   function rearm() { earned.streak = false; dryRun = 0; sharePitch(); }
+
   /* Nobody guesses that sharing pays. While it is unclaimed the button says so
      in its own label and glows; once it has paid it goes back to being a plain
      Share button, because then it is telling you nothing you can use. */
+  /* Sharing lifts you off the floor and no further. Any other route into luck —
+     a dry streak, Game Changer, a level still standing after a win — means the
+     button has nothing left to offer, and it must say so rather than promise a
+     boost it will refuse to give. */
   function sharePitch() {
-    var b = $('.share'), on = !unlocked && luckLevel < PLAYER_TOP;
+    var b = $('.share'), on = !unlocked && luckLevel === 0;
     b.classList.toggle('pays', on);
     $('.slabel').textContent = on ? 'Share to boost luck' : 'Share';
   }
@@ -2810,9 +2878,7 @@
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
           '<small>Luck Boost</small>', 3400);
     sPop();                                          // he lands
-    setTimeout(function () {
-      setLuck(luckLevel + 1); sharePitch(); sLuckUp();
-    }, 620);
+    setTimeout(function () { setLuck(luckLevel + 1); sLuckUp(); }, 620);
     setTimeout(function () {
       granting = false;
       lever.classList.remove('busy');
@@ -2853,7 +2919,10 @@
     shareResult();
     /* On the click, not the outcome — sharing can be cancelled, and on a desktop
        it falls through to saving the card. It pays once either way. */
-    setTimeout(function () { grantLuck('Thanks! More luck for you', null); }, 500);
+    /* Only from zero — the same rule the button is drawn from. */
+    if (!unlocked && luckLevel === 0) {
+      setTimeout(function () { grantLuck('Thanks! More luck for you', null); }, 500);
+    }
   });
 
   if (PAGE) {
