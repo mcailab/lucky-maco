@@ -295,10 +295,10 @@
     '@media (max-height:707px){:host{--maxcell:52px;--hop:46px;--mqpad:9px;',
 '--msg:38px;--sharepad:5px;--gap:10px;--belly:42px}}',
     '@media (max-height:647px){:host{--maxcell:44px;--hop:38px;--mqpad:7px;',
-'--msg:34px;--sharepad:4px;--gap:8px}}',
+'--msg:34px;--sharepad:4px;--gap:8px;--belly:36px}}',
     '@media (max-height:587px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
-    '--msg:30px;--sharepad:4px;--gap:8px}}',
-    '@media (max-height:552px){:host{--maxcell:32px;--hop:28px;--mqpad:5px;',
+    '--msg:30px;--sharepad:4px;--gap:8px;--belly:31px}}',
+    '@media (max-height:552px){:host{--belly:27px;--maxcell:32px;--hop:28px;--mqpad:5px;',
     '--msg:26px;--sharepad:3px;--gap:6px}}',
     '@media (max-height:512px){:host{--maxcell:26px;--hop:22px;--mqpad:4px;',
     '--msg:22px;--sharepad:3px;--gap:5px}}',
@@ -779,8 +779,8 @@
     /* These must sit after every component rule: they share specificity with the
        .belly / .hopper display declarations, so declared earlier they simply lose
        the cascade and nothing hides. */
-    '@media (max-height:647px){.belly{display:none}}',
-    '@media (max-height:482px){.hopper,.labels,.mq-sub,.belly{display:none}}',
+    '@media (max-height:500px){.belly{display:none}}',
+    '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
     '.ctl.cog.unlocked{animation:none;border-color:var(--gold-lit);color:var(--gold-lit)}',
     '.mqlamp,.marquee.litJ .mq,.marquee.litG .mq,.marquee.litJ img,',
