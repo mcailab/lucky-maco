@@ -77,7 +77,7 @@
       var v = o[k];
       if (NUM[k]) {
         var n = parseFloat(v);
-        if (isNaN(n) || n < 0 || n > 1) { warn(k + ' must be 0–1, got "' + v + '" — ignored'); continue; }
+        if (isNaN(n) || n < 0 || n > 1) { warn(k + ' must be 0-1, got "' + v + '" — ignored'); continue; }
         CFG[k] = n;
       } else if (ENUM[k]) {
         var e = parseInt(v, 10);
@@ -96,7 +96,7 @@
     if (CFG.triple + CFG.twins > 1) {         // keep the split coherent
       var t = CFG.triple + CFG.twins;
       CFG.triple /= t; CFG.twins /= t;
-      warn('triple + twins exceeded 1 — normalised to ' +
+      warn('triple + twins exceeded 1 \u2014 normalised to ' +
            CFG.triple.toFixed(3) + ' / ' + CFG.twins.toFixed(3));
     }
     return snapshot();
@@ -139,7 +139,7 @@
   if (CFG.set) {
     var want = String(CFG.set).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     var ok = want.filter(function (n) { return MACOJI.indexOf(n) >= 0; });
-    if (ok.length < 3) warn('"set" needs at least 3 known Macoji — using the full set');
+    if (ok.length < 3) warn('"set" needs at least 3 known Macoji \u2014 using the full set');
     else POOL = ok;
   }
 
@@ -910,26 +910,61 @@
   function shareText() {
     var b = msg.querySelector('b'), sm = msg.querySelector('small');
     return (b ? b.textContent.trim() : 'Lucky Maco') +
-           (sm ? ' — ' + sm.textContent.trim() : '') + '\n' + EMBED_HOME;
+           (sm ? ' \u2014 ' + sm.textContent.trim() : '') + '\n' + EMBED_HOME;
+  }
+
+  /* navigator.share only works while the click's user activation is still live.
+     Building the PNG inside toBlob's async callback loses it on Android Chrome,
+     which throws NotAllowedError — and my first version swallowed that in an
+     empty catch, so the button looked dead. The card is now rendered as soon as
+     a result lands, so the click has a file ready and calls share immediately. */
+  var pendingCard = null;
+  function prepareCard() {
+    pendingCard = null;
+    try {
+      shareCanvas().toBlob(function (blob) {
+        if (!blob) return;
+        try { pendingCard = new File([blob], 'lucky-maco.png', { type: 'image/png' }); }
+        catch (e) { pendingCard = blob; }
+      }, 'image/png');
+    } catch (e) { /* leave it null; the click will build one */ }
+  }
+
+  function handOff(file) {
+    var payload = { title: 'Lucky Maco', text: shareText() };
+    var isFile = file && file.name;
+    if (isFile && navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: payload.title, text: payload.text });
+    }
+    if (navigator.share) return navigator.share(payload);
+    return Promise.reject(new Error('no-share'));
   }
 
   function shareResult() {
-    var cv = shareCanvas();
-    cv.toBlob(function (blob) {
-      if (!blob) return;
-      var file = null;
-      try { file = new File([blob], 'lucky-maco.png', { type: 'image/png' }); } catch (e) {}
-      var payload = { title: 'Lucky Maco', text: shareText() };
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: payload.title, text: payload.text })
-          ['catch'](function () {});
-        return;
-      }
-      if (navigator.share) {
-        navigator.share(payload)['catch'](function () { saveCard(blob); });
-        return;
-      }
-      saveCard(blob);
+    var file = pendingCard;
+    var after = function (err) {
+      if (!err) return;
+      if (err && err.name === 'AbortError') return;      // they just backed out
+      if (file) saveCard(file);
+      else toast('<b>Could not share</b><small>' + (err.message || err.name || '') +
+                 '</small>', 2600);
+    };
+    if (file) {
+      var p;
+      try { p = handOff(file); } catch (e) { after(e); return; }
+      if (p && p['catch']) p['catch'](after);
+      return;
+    }
+    /* No card ready — build one, then share. Activation may already be gone, so
+       this path is expected to fall through to saving. */
+    shareCanvas().toBlob(function (blob) {
+      if (!blob) { toast('<b>Could not build the card</b>', 2200); return; }
+      var f;
+      try { f = new File([blob], 'lucky-maco.png', { type: 'image/png' }); } catch (e) { f = blob; }
+      file = f;
+      var p;
+      try { p = handOff(f); } catch (e) { after(e); return; }
+      if (p && p['catch']) p['catch'](after);
     }, 'image/png');
   }
 
@@ -1319,6 +1354,7 @@
     stopSpinSound();
     lever.classList.remove('busy');
     $('.share').hidden = false;                  // there is now something to share
+    setTimeout(prepareCard, 60);                 // ready before the button is pressed
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
     var r = res.reels;
@@ -1809,6 +1845,10 @@
     clearDrops();
   });
 
+  $('.share').addEventListener('click', function (e) {
+    e.stopPropagation(); shareResult();
+  });
+
   if (PAGE) {
     scrim.classList.add('on');
     fillIn();
@@ -1822,10 +1862,6 @@
     document.addEventListener('pointerdown', arm1);
     document.addEventListener('keydown', arm1);
   } else {
-  $('.share').addEventListener('click', function (e) {
-    e.stopPropagation(); shareResult();
-  });
-
   fab.addEventListener('click', open);
     $('.close').addEventListener('click', close);
     scrim.addEventListener('click', function (e) { if (e.target === scrim) close(); });
