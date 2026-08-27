@@ -240,11 +240,17 @@
     '--mount:linear-gradient(180deg,#3A4A80,#19233F);--rail:rgba(0,0,0,.35);',
     '--scrim:rgba(8,12,26,.72);--close-bg:rgba(255,255,255,.10);--close-fg:#fff}',
 
-    ':host{--cell:84px}',
+    /* Only the reel window used to scale with height. Everything else — marquee,
+       hopper, message, share button — was fixed, so on a short screen the machine
+       outgrew the space and safe-centring pinned it to the top, which reads as
+       "not centred". These all shrink together now. */
+    ':host{--cell:84px;--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px}',
     '@media (max-width:430px){:host{--cell:66px}}',
-    '@media (max-height:760px){:host{--cell:70px}}',
-    '@media (max-height:670px){:host{--cell:60px}}',
-    '@media (max-height:580px){:host{--cell:50px}}',
+    '@media (max-height:820px){:host{--cell:72px;--hop:66px;--mqpad:12px;--msg:52px}}',
+    '@media (max-height:730px){:host{--cell:62px;--hop:58px;--mqpad:10px;--msg:48px;--sharepad:7px}}',
+    '@media (max-height:650px){:host{--cell:52px;--hop:48px;--mqpad:8px;--msg:44px;--sharepad:6px}}',
+    '@media (max-height:570px){:host{--cell:44px;--hop:40px;--mqpad:6px;--msg:40px;--sharepad:5px}}',
+    '@media (max-height:500px){:host{--cell:38px;--hop:34px;--mqpad:5px;--msg:36px;--sharepad:4px}}',
     ':host,*{box-sizing:border-box}',
 
     '.fab{position:fixed;bottom:16px;' + (LEFT ? 'left:16px;' : 'right:16px;') +
@@ -312,7 +318,7 @@
 
     /* marquee — the lit topper above the reels */
     '.marquee{display:flex;align-items:center;justify-content:center;gap:13px;',
-    'margin:4px 0 20px;padding:14px 22px;border-radius:18px;',
+    'margin:2px 0 calc(var(--mqpad) + 6px);padding:var(--mqpad) 22px;border-radius:18px;',
     'background:var(--mq);border:1px solid var(--gold-soft);',
     'box-shadow:var(--mq-sh);position:relative}',
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:18px;',
@@ -372,7 +378,8 @@
     /* hopper — the machine's visible supply of Macoji, sitting above the reels.
        The frame stays put on a jackpot; only its floor opens and the stock falls
        through. */
-    '.hopper{position:relative;height:74px;margin:0 0 15px;border-radius:12px;',
+    '.hopper{position:relative;height:var(--hop);margin:0 0 calc(var(--mqpad) + 1px);',
+    'border-radius:12px;',
     'background:var(--reel);border:1px solid var(--cab-br)}',
     '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
     'transition:opacity .3s}',
@@ -431,7 +438,7 @@
     'text-transform:uppercase;color:var(--mut);overflow:hidden}',
 
     '.share{display:flex;align-items:center;justify-content:center;gap:7px;',
-    'margin:10px auto 0;padding:8px 16px;border-radius:999px;cursor:pointer;',
+    'margin:8px auto 0;padding:var(--sharepad) 16px;border-radius:999px;cursor:pointer;',
     'border:1px solid var(--gold-soft);background:transparent;color:var(--gold);',
     'font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;',
     '-webkit-tap-highlight-color:transparent;',
@@ -443,7 +450,8 @@
     '.share.off{visibility:hidden;opacity:0;pointer-events:none}',
     '.share svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;',
     'stroke-linecap:round;stroke-linejoin:round}',
-    '.msg{min-height:56px;display:grid;place-items:center;text-align:center;margin-top:12px;padding:0 4px}',
+    '.msg{min-height:var(--msg);display:grid;place-items:center;text-align:center;',
+    'margin-top:10px;padding:0 4px}',
     '.msg b{display:block;font-size:19px;letter-spacing:.03em;white-space:nowrap}',
     '.msg b img{width:25px;height:25px;vertical-align:-6px;margin-right:7px}',
     '.msg b img + img{margin-left:-13px}',      /* the pair huddles together */
@@ -766,7 +774,18 @@
   }
 
   function shareCanvas() {
-    var box = cab.getBoundingClientRect();
+    var cabR = cab.getBoundingClientRect();
+    var levR = lever.getBoundingClientRect();
+    /* The lever hangs off the cabinet's right edge, so a card exactly one cabinet
+       wide clipped it off entirely. Frame the union of the two instead, with a
+       margin, and the machine sits on the page colour with its lever intact. */
+    var PAD = 26;
+    var box = {
+      left: Math.min(cabR.left, levR.left) - PAD,
+      top:  cabR.top - PAD,
+      width: Math.max(cabR.right, levR.right) - Math.min(cabR.left, levR.left) + PAD * 2,
+      height: cabR.height + PAD * 2
+    };
     var SC = CARD_W / box.width;
     var FOOT = 74;
     var cv = document.createElement('canvas');
@@ -839,11 +858,19 @@
       c.fillText(str, x, y);
     };
 
-    /* cabinet */
-    var g = c.createLinearGradient(0, 0, 0, cv.height);
+    /* page behind, then the cabinet as a panel on it */
+    c.fillStyle = dark ? '#0E1430' : '#F4F6FA';
+    c.fillRect(0, 0, cv.width, cv.height);
+    var cabX = (cabR.left - box.left) * SC, cabY = (cabR.top - box.top) * SC;
+    var cabW = cabR.width * SC, cabH = cabR.height * SC;
+    var g = c.createLinearGradient(0, cabY, 0, cabY + cabH);
     if (dark) { g.addColorStop(0, '#22305F'); g.addColorStop(1, '#121A38'); }
     else      { g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#F2F5FA'); }
-    c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,' + (dark ? '.5' : '.22') + ')';
+    c.shadowBlur = 40 * SC; c.shadowOffsetY = 14 * SC;
+    rrect(c, cabX, cabY, cabW, cabH, 28 * SC); c.fillStyle = g; c.fill();
+    c.restore();
 
     var gold = cssVar('--gold') || '#FFD772';
     var lit  = cssVar('--gold-lit') || '#FFC96B';
@@ -955,6 +982,29 @@
     if (sm) {
       var sr = rel(sm);
       text(sm.textContent, sr.cx, sr.cy, '500 ' + (13 * SC).toFixed(0) + 'px', mut, sr.w);
+    }
+
+    /* the lever, at rest — rail, mount, arm, knob */
+    var piece = function (sel) {
+      var el = root.querySelector(sel);
+      return el ? rel(el) : null;
+    };
+    var rail = piece('.rail'), mount = piece('.mount'),
+        arm = piece('.arm'),  knob = piece('.knob');
+    if (rail) { rrect(c, rail.x, rail.y, rail.w, rail.h, rail.w / 2);
+                c.fillStyle = dark ? 'rgba(0,0,0,.35)' : 'rgba(27,42,91,.13)'; c.fill(); }
+    if (mount) { rrect(c, mount.x, mount.y, mount.w, mount.h, 7 * SC);
+                 c.fillStyle = dark ? '#2C3A६8'.replace('६','6') : '#D3D9E5'; c.fill(); }
+    if (arm) {
+      var ag = c.createLinearGradient(arm.x, 0, arm.x + arm.w, 0);
+      ag.addColorStop(0, '#8F98A8'); ag.addColorStop(.45, '#EDF2F9'); ag.addColorStop(1, '#79828F');
+      rrect(c, arm.x, arm.y, arm.w, arm.h, arm.w / 2); c.fillStyle = ag; c.fill();
+    }
+    if (knob) {
+      var kr = knob.w / 2, kx = knob.cx, ky = knob.cy;
+      var kg = c.createRadialGradient(kx - kr * .18, ky - kr * .22, kr * .1, kx, ky, kr);
+      kg.addColorStop(0, '#FF8A8A'); kg.addColorStop(.7, '#C31432'); kg.addColorStop(1, '#A50F27');
+      c.beginPath(); c.arc(kx, ky, kr, 0, 6.2832); c.fillStyle = kg; c.fill();
     }
 
     /* footer */
