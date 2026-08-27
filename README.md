@@ -48,6 +48,20 @@ hopper is a window onto a slightly wider heap, so a few run off the edges — th
 is more back there than you can see, but the count is honest. On a jackpot all 28
 fall into the reel window and stay there until the next pull.
 
+## The meter
+
+Below the reels is the **belly glass** — on a real cabinet, the lit lower panel
+carrying the game's character art and payout ladder. Ours carries five lamps.
+
+Twins lights one, a jackpot lights two, and each lamp takes **the face that
+actually won it**, so the panel reads as a record of your last five wins. Fill all
+five and Maco bursts out of the machine: the lamps flash in turn, collapse inward,
+Maco grows up the page, and every Macoji rains down behind him.
+
+    0.10 x 1  +  0.05 x 2  =  0.20 lamps per pull  ->  a Wildfire every ~25
+
+The meter is saved per viewer, so you come back to your lamps still lit.
+
 ## Odds
 
 | Outcome | Layout | Odds |

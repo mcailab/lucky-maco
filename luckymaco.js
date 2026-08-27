@@ -127,6 +127,7 @@
   var ICON = function (name) { return IBASE + 'macoji-' + name + '.png'; };
   var LOGO = BASE + 'brand/masterconcept-mark.png';
   var FACE = BASE + 'brand/maco-face.png';
+  var BODY = BASE + 'brand/maco-body.png';
 
   /* ── the cast ─────────────────────────────────────────────────────────── */
   var MACOJI = [
@@ -259,18 +260,19 @@
     /* 40 cabinet padding + 16 window padding + 8 for the two gaps between cells,
        so the three cells actually fill the window instead of floating in it. */
     '--cell:min(var(--maxcell), calc((var(--cabw) - 64px) / 3));',
-    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px}',
+    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px;',
+'--belly:54px}',
     '@media (min-width:620px) and (min-height:880px){',
-    ':host{--cabw:440px;--maxcell:118px;--hop:84px;--mqpad:18px;--msg:62px;',
-    '--sharepad:10px;--gap:24px}}',
-    '@media (max-height:800px){:host{--maxcell:80px;--hop:68px;--mqpad:12px;',
-    '--msg:50px;--sharepad:7px;--gap:15px}}',
-    '@media (max-height:730px){:host{--maxcell:68px;--hop:60px;--mqpad:10px;',
-    '--msg:46px;--sharepad:6px;--gap:13px}}',
-    '@media (max-height:665px){:host{--maxcell:58px;--hop:50px;--mqpad:9px;',
-    '--msg:40px;--sharepad:5px;--gap:11px}}',
-    '@media (max-height:605px){:host{--maxcell:48px;--hop:42px;--mqpad:7px;',
-    '--msg:36px;--sharepad:4px;--gap:9px}}',
+    ':host{--cabw:440px;--maxcell:104px;--hop:80px;--mqpad:17px;--msg:58px;',
+'--sharepad:9px;--gap:18px;--belly:60px}}',
+    '@media (max-height:800px){:host{--maxcell:70px;--hop:62px;--mqpad:12px;',
+'--msg:48px;--sharepad:7px;--gap:14px;--belly:54px}}',
+    '@media (max-height:730px){:host{--maxcell:60px;--hop:54px;--mqpad:10px;',
+'--msg:44px;--sharepad:6px;--gap:12px;--belly:48px}}',
+    '@media (max-height:665px){:host{--maxcell:52px;--hop:46px;--mqpad:9px;',
+'--msg:38px;--sharepad:5px;--gap:10px;--belly:42px}}',
+    '@media (max-height:605px){:host{--maxcell:44px;--hop:38px;--mqpad:7px;',
+'--msg:34px;--sharepad:4px;--gap:8px}}',
     '@media (max-height:545px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
     '--msg:30px;--sharepad:4px;--gap:8px}}',
     '@media (max-height:510px){:host{--maxcell:32px;--hop:28px;--mqpad:5px;',
@@ -280,8 +282,8 @@
     /* A phone on its side has no room for a portrait cabinet. Drop the hopper and
        the time-of-day labels rather than clipping the reels, which are the part
        you actually need. */
-    '@media (max-height:440px){.hopper,.labels,.mq-sub{display:none}',
-    '.marquee img{width:24px;height:24px}.mq-name{font-size:16px}',
+    '@media (max-height:440px){.marquee img{width:24px;height:24px}',
+    '.mq-name{font-size:16px}',
     ':host{--maxcell:28px;--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
     '@media (max-height:380px){:host{--maxcell:22px;--msg:16px}}',
     ':host,*{box-sizing:border-box}',
@@ -627,8 +629,44 @@
     '.modebar.open{color:var(--gold)}',
     '.copy{position:fixed;left:0;right:0;bottom:11px;text-align:center;font-size:10px;',
     'letter-spacing:.1em;color:var(--faint);pointer-events:none;display:none}',
+    /* Belly glass: on a real cabinet this is the lit lower panel carrying the
+       game's character art and its payout ladder. Ours carries Maco and the
+       five-lamp meter, which is the same job. */
+    '.belly{position:relative;display:flex;align-items:center;justify-content:center;',
+    'gap:calc(var(--belly) * .10);height:var(--belly);margin-top:var(--gap);',
+    'padding:0 12px;border-radius:14px;',
+    'background:linear-gradient(180deg,rgba(255,201,107,.10),rgba(255,158,27,.03));',
+    'border:1px solid var(--cab-br);transition:border-color .4s,background .4s}',
+    '.belly.full{border-color:var(--gold-lit);',
+    'background:linear-gradient(180deg,rgba(255,201,107,.24),rgba(255,158,27,.08))}',
+    /* Unlit lamps are desaturated and dimmed, not made transparent — at low
+       opacity they nearly vanished against both themes. Grey still reads as a
+       Maco face, just an unlit one. */
+    '.lamp{width:calc(var(--belly) * .64);height:calc(var(--belly) * .64);',
+    'filter:grayscale(1) brightness(.62) contrast(.85);opacity:.85;',
+    'transition:filter .5s,opacity .5s,transform .4s}',
+    '.lamp.lit{filter:none;opacity:1;',
+    'animation:lampon .55s cubic-bezier(.34,1.7,.64,1)}',
+    '@keyframes lampon{0%{transform:scale(.35);opacity:0}',
+    '60%{filter:brightness(1.6) drop-shadow(0 0 12px var(--gold-lit))}',
+    '100%{transform:none;opacity:1}}',
+    /* the last dark lamp breathes when you are one win away */
+    '.lamp.next{animation:nextup 1.5s ease-in-out infinite}',
+    '@keyframes nextup{0%,100%{opacity:.6;transform:scale(1)}',
+    '50%{opacity:1;transform:scale(1.09)}}',
+    /* Wildfire: Maco bursts out of the belly and grows up the page */
+    '.bigmaco{position:fixed;pointer-events:none;z-index:2147483005;',
+    'filter:drop-shadow(0 18px 40px rgba(240,130,30,.55))}',
+    /* the Wildfire itself pours out of the machine and down the page */
+    '.wild{position:fixed;inset:0;pointer-events:none;z-index:2147483004;overflow:hidden}',
+    '.wild img{position:absolute;width:52px;height:52px}',
     '.spark{position:absolute;width:9px;height:9px;border-radius:2px;pointer-events:none}',
     '@media (max-width:430px){.lever{right:-10px;transform:scale(.82);transform-origin:50% 30%}}',
+    /* These must sit after every component rule: they share specificity with the
+       .belly / .hopper display declarations, so declared earlier they simply lose
+       the cascade and nothing hides. */
+    '@media (max-height:605px){.belly{display:none}}',
+    '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
     '.mglow::before{animation:none}',
     '.mq-name{-webkit-text-fill-color:var(--gold)}}',
@@ -689,6 +727,7 @@
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
           '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button>' +
+        '<div class="belly"></div>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
@@ -1412,6 +1451,150 @@
     }
   }
 
+  /* ── the meter ────────────────────────────────────────────────────────────
+     A collection meter, the standard slot mechanic: wins light lamps across
+     pulls, and filling them triggers something the base game cannot. Each lamp
+     lights with the face that actually won it, so the panel doubles as a record
+     of your last five wins. Twins lights one, a jackpot lights two — otherwise
+     the rarer result would be worth no more than the common one.
+
+       0.10 x 1  +  0.05 x 2  =  0.20 lamps per pull  ->  a Wildfire every ~25 */
+  var LAMPS = 5, lamps = [];
+  var belly = $('.belly'), lampRow = belly;
+
+  try {
+    var saved = JSON.parse(localStorage.getItem('luckymaco:lamps') || '[]');
+    if (saved instanceof Array) {
+      lamps = saved.filter(function (n) { return MACOJI.indexOf(n) >= 0; }).slice(0, LAMPS);
+    }
+  } catch (e) {}
+
+  function drawLamps() {
+    var h = '', i;
+    for (i = 0; i < LAMPS; i++) {
+      var face = lamps[i] || 'neutral';
+      var cls = lamps[i] ? ' lit' : (i === lamps.length && lamps.length === LAMPS - 1 ? ' next' : '');
+      h += '<img class="lamp' + cls + '" src="' + ICON(face) +
+           '" alt="' + (lamps[i] || '') + '">';
+    }
+    lampRow.innerHTML = h;
+    belly.classList.toggle('full', lamps.length >= LAMPS);
+  }
+  function saveLamps() {
+    try { localStorage.setItem('luckymaco:lamps', JSON.stringify(lamps)); } catch (e) {}
+  }
+  drawLamps();
+
+  /* Everything the machine holds pours out and keeps going past the cabinet —
+     the jackpot fills the wheel, the Wildfire fills the page. */
+  /* A sequence rather than one burst — the five faces you collected become Maco,
+     he bursts out of the belly, grows across the page, and only then does the
+     machine go up. Each phase hands off to the next. */
+  function wildfire() {
+    var box = belly.getBoundingClientRect();
+    var lampsEls = belly.querySelectorAll('.lamp');
+    var i;
+
+    /* 1. the five flash in turn, left to right */
+    for (i = 0; i < lampsEls.length; i++) {
+      lampsEls[i].animate([
+        { transform: 'scale(1)',   filter: 'none' },
+        { transform: 'scale(1.5)', filter: 'brightness(2) drop-shadow(0 0 16px #FFC96B)' },
+        { transform: 'scale(1)',   filter: 'none' }
+      ], { duration: 420, delay: i * 130, easing: 'ease-out' });
+    }
+
+    /* 2. they collapse inward, as if feeding whatever is about to appear */
+    var mid = box.left + box.width / 2;
+    setTimeout(function () {
+      for (var k = 0; k < lampsEls.length; k++) {
+        var r = lampsEls[k].getBoundingClientRect();
+        lampsEls[k].animate([
+          { transform: 'translateX(0) scale(1)', opacity: 1 },
+          { transform: 'translateX(' + (mid - (r.left + r.width / 2)) + 'px) scale(.2)',
+            opacity: 0 }
+        ], { duration: 460, easing: 'cubic-bezier(.6,0,.8,.4)', fill: 'forwards' });
+      }
+    }, lampsEls.length * 130 + 260);
+
+    /* 3. Maco bursts out of the belly, grows, and rises up the page */
+    setTimeout(function () {
+      var el = document.createElement('img');
+      el.className = 'bigmaco';
+      el.src = BODY;
+      var S0 = Math.max(28, box.height * .5);
+      el.style.width = el.style.height = S0 + 'px';
+      el.style.left = (mid - S0 / 2) + 'px';
+      el.style.top = (box.top + box.height / 2 - S0 / 2) + 'px';
+      root.appendChild(el);
+      var rise = Math.min(box.top - 40, window.innerHeight * .42);
+      var grow = Math.min(7.5, (window.innerWidth * .52) / S0);
+      el.animate([
+        { transform: 'translateY(0) scale(.3) rotate(-8deg)', opacity: 0, offset: 0 },
+        { transform: 'translateY(' + (-rise * .45) + 'px) scale(' + (grow * .55) +
+          ') rotate(6deg)', opacity: 1, offset: .3,
+          easing: 'cubic-bezier(.2,.9,.3,1)' },
+        { transform: 'translateY(' + (-rise) + 'px) scale(' + grow +
+          ') rotate(-3deg)', opacity: 1, offset: .58, easing: 'ease-out' },
+        { transform: 'translateY(' + (-rise) + 'px) scale(' + grow +
+          ') rotate(2deg)', opacity: 1, offset: .78 },
+        { transform: 'translateY(' + (-rise - 60) + 'px) scale(' + (grow * 1.06) +
+          ') rotate(0deg)', opacity: 0, offset: 1 }
+      ], { duration: 2400, easing: 'linear', fill: 'both' })
+        .onfinish = function () { el.remove(); };
+      sJack();
+      buzz([90, 60, 90, 60, 140, 80, 420]);
+      toast('<b>WILDFIRE</b><small>five wins &mdash; Maco is out</small>', 2800);
+    }, lampsEls.length * 130 + 640);
+
+    /* 4. and the machine goes up: Macoji down the whole page */
+    setTimeout(rainDown, lampsEls.length * 130 + 1400);
+  }
+
+  function rainDown() {
+    var layer = document.createElement('div');
+    layer.className = 'wild';
+    root.appendChild(layer);
+    var faces = distinct(POOL.length), W = window.innerWidth, H = window.innerHeight;
+    var n = Math.min(56, faces.length * 2);
+    for (var i = 0; i < n; i++) {
+      (function (i) {
+        var el = document.createElement('img');
+        el.src = ICON(faces[i % faces.length]);
+        el.style.left = (Math.random() * (W - 52)).toFixed(0) + 'px';
+        el.style.top = '-70px';
+        layer.appendChild(el);
+        var drift = (Math.random() - 0.5) * 160, turn = (Math.random() - 0.5) * 900;
+        el.animate([
+          { transform: 'translate(0,0) rotate(0deg)', opacity: 0 },
+          { transform: 'translate(' + (drift * .3) + 'px,' + (H * .3) + 'px) rotate(' +
+            (turn * .3) + 'deg)', opacity: 1, offset: .25 },
+          { transform: 'translate(' + drift + 'px,' + (H + 120) + 'px) rotate(' +
+            turn + 'deg)', opacity: 1 }
+        ], { duration: 1900 + Math.random() * 1400,
+             delay: i * 40 + Math.random() * 120,
+             easing: 'cubic-bezier(.35,0,.7,.6)', fill: 'backwards' });
+      })(i);
+    }
+    sFall();
+    setTimeout(function () { layer.remove(); }, 4800);
+  }
+
+  /* Wins feed the meter. Filling it resets the lamps and sets the page alight. */
+  function feedMeter(res) {
+    var add = res.pattern === 'TRIPLE' ? 2 : 1;
+    var face = res.pattern === 'TRIPLE' ? res.reels[0]
+             : (res.reels[0] === res.reels[1] ? res.reels[0] : res.reels[2]);
+    while (add-- > 0 && lamps.length < LAMPS) lamps.push(face);
+    drawLamps(); saveLamps();
+    if (lamps.length >= LAMPS) {
+      setTimeout(function () {
+        wildfire();
+        setTimeout(function () { lamps = []; drawLamps(); saveLamps(); }, 6200);
+      }, 1100);
+    }
+  }
+
   /* ── load-in ──────────────────────────────────────────────────────────────
      The machine starts empty and Macoji pour in, filling each column from the
      bottom up. Runs once, on open. Pure Web Animations on the cells that are
@@ -1578,6 +1761,7 @@
   /* Jackpot escapes the reel window — the whole cabinet celebrates and it rains
      Macoji. That shower is the jackpot's signature and appears nowhere else. */
   function celebrate() {
+    feedMeter(lastResult);
     marquee.classList.add('allon');              // every bulb, alternating
     setTimeout(function () { marquee.classList.remove('allon'); }, 2200);
     restart(cab, 'jackpot');
@@ -1596,6 +1780,7 @@
   /* A pair stays inside the window: payline lights, the two matching Macoji
      wiggle. No shake, no strobe, nothing falls. */
   function celebrateSmall(res) {
+    feedMeter(res);
     marquee.classList.add('allon');
     setTimeout(function () { marquee.classList.remove('allon'); }, 700);
     var band = $('.band');
