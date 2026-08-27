@@ -244,13 +244,37 @@
        hopper, message, share button — was fixed, so on a short screen the machine
        outgrew the space and safe-centring pinned it to the top, which reads as
        "not centred". These all shrink together now. */
-    ':host{--cell:84px;--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px}',
-    '@media (max-width:430px){:host{--cell:66px}}',
-    '@media (max-height:820px){:host{--cell:72px;--hop:66px;--mqpad:12px;--msg:52px}}',
-    '@media (max-height:730px){:host{--cell:62px;--hop:58px;--mqpad:10px;--msg:48px;--sharepad:7px}}',
-    '@media (max-height:650px){:host{--cell:52px;--hop:48px;--mqpad:8px;--msg:44px;--sharepad:6px}}',
-    '@media (max-height:570px){:host{--cell:44px;--hop:40px;--mqpad:6px;--msg:40px;--sharepad:5px}}',
-    '@media (max-height:500px){:host{--cell:38px;--hop:34px;--mqpad:5px;--msg:36px;--sharepad:4px}}',
+    /* --cell is whatever fits BOTH ways: capped by --maxcell for height, and by
+       the cabinet's own width so it can never overflow sideways. The old fixed
+       66px width rule shrank the reels on phones that had room for full size,
+       and the height rules started at 820px, which is shorter than most desktop
+       windows — so the reels were being shrunk almost everywhere.
+       --gap is the single spacing between stacked parts, so marquee-to-hopper and
+       hopper-to-reels cannot drift apart. */
+    ':host{--maxcell:93px;',
+    '--cell:min(var(--maxcell), calc((min(360px, 88vw) - 40px) / 3));',
+    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:18px}',
+    '@media (max-height:800px){:host{--maxcell:80px;--hop:68px;--mqpad:12px;',
+    '--msg:50px;--sharepad:7px;--gap:15px}}',
+    '@media (max-height:730px){:host{--maxcell:68px;--hop:60px;--mqpad:10px;',
+    '--msg:46px;--sharepad:6px;--gap:13px}}',
+    '@media (max-height:665px){:host{--maxcell:58px;--hop:50px;--mqpad:9px;',
+    '--msg:40px;--sharepad:5px;--gap:11px}}',
+    '@media (max-height:605px){:host{--maxcell:48px;--hop:42px;--mqpad:7px;',
+    '--msg:36px;--sharepad:4px;--gap:9px}}',
+    '@media (max-height:545px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
+    '--msg:30px;--sharepad:4px;--gap:8px}}',
+    '@media (max-height:510px){:host{--maxcell:32px;--hop:28px;--mqpad:5px;',
+    '--msg:26px;--sharepad:3px;--gap:6px}}',
+    '@media (max-height:470px){:host{--maxcell:26px;--hop:22px;--mqpad:4px;',
+    '--msg:22px;--sharepad:3px;--gap:5px}}',
+    /* A phone on its side has no room for a portrait cabinet. Drop the hopper and
+       the time-of-day labels rather than clipping the reels, which are the part
+       you actually need. */
+    '@media (max-height:440px){.hopper,.labels,.mq-sub{display:none}',
+    '.marquee img{width:24px;height:24px}.mq-name{font-size:16px}',
+    ':host{--maxcell:28px;--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
+    '@media (max-height:380px){:host{--maxcell:22px;--msg:16px}}',
     ':host,*{box-sizing:border-box}',
 
     '.fab{position:fixed;bottom:16px;' + (LEFT ? 'left:16px;' : 'right:16px;') +
@@ -318,7 +342,7 @@
 
     /* marquee — the lit topper above the reels */
     '.marquee{display:flex;align-items:center;justify-content:center;gap:13px;',
-    'margin:2px 0 calc(var(--mqpad) + 6px);padding:var(--mqpad) 22px;border-radius:18px;',
+    'margin:2px 0 var(--gap);padding:var(--mqpad) 22px;border-radius:18px;',
     'background:var(--mq);border:1px solid var(--gold-soft);',
     'box-shadow:var(--mq-sh);position:relative}',
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:18px;',
@@ -378,7 +402,7 @@
     /* hopper — the machine's visible supply of Macoji, sitting above the reels.
        The frame stays put on a jackpot; only its floor opens and the stock falls
        through. */
-    '.hopper{position:relative;height:var(--hop);margin:0 0 calc(var(--mqpad) + 1px);',
+    '.hopper{position:relative;height:var(--hop);margin:0 0 var(--gap);',
     'border-radius:12px;',
     'background:var(--reel);border:1px solid var(--cab-br)}',
     '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
@@ -410,7 +434,7 @@
     'pointer-events:none;z-index:3}',
     '.drop{position:absolute;will-change:transform;',
     'filter:drop-shadow(0 4px 9px rgba(0,0,0,.4))}',
-    '.window{position:relative;display:flex;gap:8px;justify-content:center;padding:12px;border-radius:18px;',
+    '.window{position:relative;display:flex;gap:4px;justify-content:center;padding:8px;border-radius:18px;',
     'background:var(--win);border:2px solid var(--win-br);box-shadow:var(--win-sh)}',
     '.reel{width:var(--cell);height:calc(var(--cell) * ' + ROWS + ');overflow:hidden;',
     'border-radius:12px;background:var(--reel);',
@@ -418,7 +442,7 @@
     '.strip{will-change:transform;transition:opacity .45s ease-in .25s}',
     '.window.emptied .strip{opacity:0}',
     '.cell{width:var(--cell);height:var(--cell);display:grid;place-items:center}',
-    '.cell img{width:calc(var(--cell) * .74);height:calc(var(--cell) * .74);display:block}',
+    '.cell img{width:calc(var(--cell) * .86);height:calc(var(--cell) * .86);display:block}',
     /* the pay row — the only one that counts */
     '.band{position:absolute;left:7px;right:7px;pointer-events:none;border-radius:10px;',
     'top:calc(12px + var(--cell) * ' + CENTRE + ');height:var(--cell);',
@@ -591,6 +615,8 @@
     'stroke-linecap:round;stroke-linejoin:round;flex:none}',
     '.modebar.locked{color:var(--mut)}',
     '.modebar.open{color:var(--gold)}',
+    '.copy{position:fixed;left:0;right:0;bottom:11px;text-align:center;font-size:10px;',
+    'letter-spacing:.1em;color:var(--faint);pointer-events:none;display:none}',
     '.spark{position:absolute;width:9px;height:9px;border-radius:2px;pointer-events:none}',
     '@media (max-width:430px){.lever{right:-10px;transform:scale(.82);transform-origin:50% 30%}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
@@ -606,7 +632,10 @@
               machine centres in what is left instead of sliding underneath. */
            '.bar{position:fixed;top:0;left:0;right:0;width:auto;height:auto;' +
            'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' +
-           '.scrim{padding-top:76px}' : ''
+           '.scrim{padding-top:76px;padding-bottom:34px}' +
+           '@media (max-height:440px){.scrim{padding-top:64px;padding-bottom:20px}' +
+           '.copy{display:none}}' +
+           '.copy{display:block}' : ''
   ].join('');
 
   root.innerHTML =
@@ -654,6 +683,7 @@
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
         '<div class="toast"><div class="card"></div></div>' +
+        '<div class="copy">&copy; 2026 Lucky Maco</div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
       '</div>' +
