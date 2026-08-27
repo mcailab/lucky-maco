@@ -318,6 +318,26 @@
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:16px;',
     'pointer-events:none;box-shadow:0 0 32px var(--glow2);',
     'animation:marquee 3.6s ease-in-out infinite}',
+    /* A light travelling around the INSIDE edge of the box. A conic gradient is
+       spun behind a ring-shaped mask, so only the border strip shows it. Where
+       mask-composite is unsupported the mask simply does not apply and it reads
+       as a soft glow behind the box instead — still fine, just less defined. */
+    '.mglow{position:absolute;inset:0;border-radius:16px;pointer-events:none;',
+    'overflow:hidden;padding:3px;z-index:0;',
+    '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+    '-webkit-mask-composite:xor;',
+    'mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);',
+    'mask-composite:exclude}',
+    '.mglow::before{content:"";position:absolute;inset:-70%;',
+    'background:conic-gradient(from 0deg,transparent 0 56%,var(--gold-soft) 68%,',
+    'var(--gold-lit) 78%,#fff4cd 82%,var(--gold-lit) 86%,transparent 94%);',
+    'animation:orbit 4.5s linear infinite}',
+    '@keyframes orbit{to{transform:rotate(1turn)}}',
+    '.marquee.fast .mglow::before{animation-duration:1.5s}',
+    '.marquee.allon .mglow::before{animation-duration:.7s}',
+    /* and a soft radial breath inside the frame */
+    '.marquee{box-shadow:var(--mq-sh),inset 0 0 18px -6px var(--glow2)}',
+    '.mq,.marquee img{position:relative;z-index:1}',
     /* chasing bulbs — a ring of lights running around the marquee */
     '.bulb{position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;',
     'background:var(--gold-lit);opacity:.22;animation:chase 2.4s linear infinite}',
@@ -421,8 +441,18 @@
 
     /* settings sheet — slides over the cabinet interior */
     '.sheet{position:absolute;inset:0;border-radius:28px;background:var(--cab);z-index:4;',
-    'padding:18px 18px 16px;overflow-y:auto;display:none}',
+    'overflow:hidden;display:none}',
     '.sheet.on{display:block}',
+    /* the body scrolls, the sheet does not — so the close button stays put */
+    '.sbody{position:absolute;inset:0;overflow-y:auto;padding:14px 16px 16px;',
+    'scrollbar-width:thin;scrollbar-color:var(--cab-br) transparent;',
+    'overscroll-behavior:contain}',
+    /* A default scrollbar sits hard against the rounded corner and collides with
+       the close button. Slim it, inset it, and keep the track invisible. */
+    '.sbody::-webkit-scrollbar{width:5px}',
+    '.sbody::-webkit-scrollbar-track{background:transparent;margin:8px 0}',
+    '.sbody::-webkit-scrollbar-thumb{background:var(--cab-br);border-radius:3px}',
+    '.sbody::-webkit-scrollbar-thumb:hover{background:var(--gold-soft)}',
     '.sheet h3{margin:0 0 12px;font:800 11px/1 inherit;letter-spacing:.16em;',
     'text-transform:uppercase;color:var(--gold)}',
     '.sheet table{width:100%;border-collapse:collapse;margin-bottom:14px}',
@@ -432,10 +462,11 @@
     '.sheet pre{margin:0 0 10px;padding:11px 12px;border-radius:10px;overflow-x:auto;',
     'background:var(--reel);border:1px solid var(--cab-br);',
     'font:500 10.5px/1.6 ui-monospace,Menlo,monospace;color:var(--txt);white-space:pre}',
-    '.sheet .shut{position:absolute;top:12px;right:14px;width:28px;height:28px;',
+    '.sheet .shut{position:absolute;top:9px;right:14px;width:22px;height:22px;',
     'border:0;border-radius:50%;background:var(--close-bg);color:var(--close-fg);',
-    'font-size:16px;line-height:1;cursor:pointer;padding:0;z-index:2}',
-    '.sheet .shut:hover{filter:brightness(.9)}',
+    'font-size:12px;line-height:1;cursor:pointer;padding:0;z-index:5;',
+    'display:grid;place-items:center;-webkit-tap-highlight-color:transparent}',
+    '.sheet .shut:hover{filter:brightness(.88)}',
     '.sheet .snip{position:relative;cursor:pointer;padding-right:38px;',
     'transition:border-color .15s}',
     '.sheet .snip:hover{border-color:var(--gold-lit)}',
@@ -504,9 +535,35 @@
     'background:radial-gradient(60% 45% at 50% 42%,var(--gold-lit),transparent 70%);',
     'opacity:0}',
     '.glare.on{animation:glare 1.1s ease-out}',
+    /* Mode changes announce themselves in the centre of the page, not down in
+       the cabinet's message area where a result belongs. */
+    '.toast{position:fixed;inset:0;display:grid;place-items:center;padding:20px;',
+    'pointer-events:none;z-index:2147483003;opacity:0;transition:opacity .25s}',
+    '.toast.on{opacity:1}',
+    '.toast .card{background:var(--cab);border:1px solid var(--gold-soft);',
+    'border-radius:20px;padding:18px 24px;text-align:center;max-width:340px;',
+    'box-shadow:0 22px 60px rgba(0,0,0,.55);color:var(--txt);',
+    'transform:scale(.92);transition:transform .3s cubic-bezier(.34,1.45,.64,1)}',
+    '.toast.on .card{transform:none}',
+    '.toast b{display:flex;align-items:center;justify-content:center;gap:9px;',
+    'font-size:17px;color:var(--gold);letter-spacing:.01em;white-space:nowrap}',
+    '.toast b svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;',
+    'stroke-linecap:round;stroke-linejoin:round;flex:none}',
+    '.toast small{display:block;font-size:13px;color:var(--mut);margin-top:6px;',
+    'white-space:nowrap}',
+    /* mode badge at the head of the settings sheet */
+    /* Sized to sit with the table rows below it, not shout over them: same
+       12.5px as a row label, with an icon to match rather than a tiny mark. */
+    '.modebar{display:flex;align-items:center;justify-content:center;gap:6px;',
+    'margin:2px 0 13px;font-size:12.5px;font-weight:600;line-height:1;letter-spacing:0}',
+    '.modebar svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;',
+    'stroke-linecap:round;stroke-linejoin:round;flex:none}',
+    '.modebar.locked{color:var(--mut)}',
+    '.modebar.open{color:var(--gold)}',
     '.spark{position:absolute;width:9px;height:9px;border-radius:2px;pointer-events:none}',
     '@media (max-width:430px){.lever{right:-10px;transform:scale(.82);transform-origin:50% 30%}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
+    '.mglow::before{animation:none}',
     '.mq-name{-webkit-text-fill-color:var(--gold)}}',
     /* page mode: the cabinet IS the page — no button, no scrim, nothing to close */
     PAGE ? '.fab,.close{display:none}' +
@@ -539,6 +596,7 @@
       '<div class="cab">' +
         '<button class="close" aria-label="Close">&#10005;</button>' +
         '<div class="marquee">' +
+          '<div class="mglow"></div>' +
           '<img src="' + LOGO + '" alt="Master Concept">' +
           '<div class="mq"><span class="mq-name">Lucky Maco</span>' +
             '<span class="mq-sub">Master Concept</span></div>' +
@@ -556,7 +614,10 @@
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
-        '<div class="sheet"></div>' +
+        '<div class="sheet">' +
+          '<button class="shut" aria-label="Close settings">&#10005;</button>' +
+          '<div class="sbody"></div></div>' +
+        '<div class="toast"><div class="card"></div></div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
       '</div>' +
@@ -954,9 +1015,6 @@
     lever.classList.add('busy');
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
-    /* A test-mode banner may have a pending restore queued. Left alone it fires
-       mid-spin and resurrects the idle text over the top of the reels. */
-    if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
     idleShowing = false;                         // a result replaces the prompt
     restock();                                   // sweep the floor, reload the hopper
     sClunk(); hPull();
@@ -1270,9 +1328,11 @@
         '<button class="step" data-k="' + k + '" data-d="' + d + '">+</button></span>'
         : val;
     };
-    sheet.innerHTML =
-      '<button class="shut" aria-label="Close settings">&#10005;</button>' +
-      '<h3>' + (op ? 'Odds &mdash; Game Changer' : 'Odds') + '</h3><table>' +
+    sheet.querySelector('.sbody').innerHTML =
+      '<div class="modebar ' + (op ? 'open' : 'locked') + '">' +
+        (op ? LOCK_OPEN : LOCK_SHUT) +
+        '<span>' + (op ? 'Game Changer Mode' : 'Player Mode') + '</span></div>' +
+      '<h3>Odds</h3><table>' +
         '<tr><td>Jackpot &mdash; 3 identical</td><td>' +
           step('triple', 0.01, pct(CFG.triple)) + '</td></tr>' +
         '<tr><td>Twins &mdash; 2 identical</td><td>' +
@@ -1431,18 +1491,25 @@
   var testPanel = $('.test'), taps = 0, tapAt = 0;
   var marquee, mark;
 
+  /* One pair of padlocks, shared by the mode toast and the sheet's badge, so the
+     two always agree. */
+  var LOCK_OPEN = '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/>' +
+        '<path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+  var LOCK_SHUT = '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/>' +
+        '<path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+
   var flashTimer = null;
-  function flash(html, ms) {
-    if (spinning) return;                       // never stomp on a result
+  /* Centred on the page and floating over everything, so it never touches the
+     result text and cannot be clobbered by a spin. */
+  function toast(html, ms) {
+    var t = $('.toast');
     if (flashTimer) clearTimeout(flashTimer);
-    var wasClass = msg.className, wasHTML = msg.innerHTML;
-    msg.className = 'msg win';
-    msg.innerHTML = html;
-    fitLine();
+    t.querySelector('.card').innerHTML = html;
+    t.classList.add('on');
     flashTimer = setTimeout(function () {
       flashTimer = null;
-      msg.className = wasClass; msg.innerHTML = wasHTML;
-    }, ms || 1500);
+      t.classList.remove('on');
+    }, ms || 1800);
   }
 
   function setTest(on) {
@@ -1450,9 +1517,10 @@
     marquee.classList.toggle('armed', on);      // dashed ring = armed, at a glance
     try { on ? sessionStorage.setItem('luckymaco:test', '1')
              : sessionStorage.removeItem('luckymaco:test'); } catch (e) {}
-    flash(on ? '<b><img src="' + FACE + '" alt="">You&rsquo;re the Game Changer</b>' +
-               '<small>machine settings unlocked &mdash; change the odds below</small>'
-             : '<b>Player Mode</b><small>machine settings locked again</small>', on ? 2400 : 1500);
+    toast(on
+      ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>' +
+        '<small>Customise your machine in Settings</small>'
+      : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2600 : 1600);
     if (on) {
       tone(880, 0.09, 'square', 0.10);
       setTimeout(function () { tone(1320, 0.12, 'square', 0.10); }, 90);
