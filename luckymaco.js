@@ -872,7 +872,9 @@
     /* End the cabinet under the result text. The live machine reserves room below
        it for the Share button, which the card has no reason to draw — left in, it
        is a dead band across the bottom of every card. */
-    var lastEl = msg.querySelector('small') || msg.querySelector('b') || msg;
+    var bellyShown = getComputedStyle(belly).display !== 'none';
+    var lastEl = bellyShown ? belly
+               : (msg.querySelector('small') || msg.querySelector('b') || msg);
     var cabDrawH = Math.min(cabR.height,
                             lastEl.getBoundingClientRect().bottom - cabR.top + 22);
     var box = {
@@ -1079,6 +1081,33 @@
       text(sm.textContent, sr.cx, sr.cy, '500 ' + (13 * SC).toFixed(0) + 'px', mut, sr.w);
     }
 
+    /* belly glass and the meter */
+    if (bellyShown) {
+      var br = panel(belly, dark ? 'rgba(255,201,107,.12)' : 'rgba(224,138,23,.16)',
+                     lamps >= LAMPS ? lit : line, 14);
+      var lampEls = belly.querySelectorAll('.lamp');
+      for (i = 0; i < lampEls.length; i++) {
+        var lrct = rel(lampEls[i]), lw = lampEls[i].offsetWidth * SC;
+        var isLit = lampEls[i].classList.contains('lit');
+        c.save();
+        if (!isLit) c.filter = 'grayscale(1) brightness(.78) contrast(.9)';
+        c.drawImage(lampEls[i], lrct.cx - lw / 2, lrct.cy - lw / 2, lw, lw);
+        c.restore();
+      }
+    }
+
+    /* A Wildfire card is Maco himself, standing over the reels he just emptied. */
+    if (lastResult && lastResult.pattern === 'WILDFIRE') {
+      var bm = new Image(); bm.src = BODY;
+      if (bm.complete && bm.naturalWidth) {
+        var wrr = rel(win), bs = wrr.h * 0.86;
+        c.save();
+        c.shadowColor = 'rgba(240,130,30,.55)'; c.shadowBlur = 60 * SC; c.shadowOffsetY = 12 * SC;
+        c.drawImage(bm, wrr.x + wrr.w / 2 - bs / 2, wrr.y + wrr.h / 2 - bs / 2, bs, bs);
+        c.restore();
+      }
+    }
+
     /* the lever, at rest — rail, mount, arm, knob */
     var piece = function (sel) {
       var el = root.querySelector(sel);
@@ -1120,6 +1149,10 @@
     var r = lastResult, day = today(), tail = '\nTry your luck \u2192 ' + EMBED_HOME;
     if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
                    'in Maco faces.' + tail;
+    if (r.pattern === 'WILDFIRE') {
+      return 'WILDFIRE on Lucky Maco \u2014 five wins lit the whole machine and ' +
+             'Maco came out. That is about one pull in twenty-five.' + tail;
+    }
     var line = 'My ' + day + ' on Lucky Maco: ' +
       label(r.reels[0]) + ' morning, ' +
       label(r.reels[1]) + ' afternoon, ' +
@@ -1466,29 +1499,28 @@
      the rarer result would be worth no more than the common one.
 
        0.10 x 1  +  0.05 x 2  =  0.20 lamps per pull  ->  a Wildfire every ~25 */
-  var LAMPS = 5, lamps = [];
+  var LAMPS = 5, lamps = 0;
   var belly = $('.belly'), lampRow = belly;
 
   try {
-    var saved = JSON.parse(localStorage.getItem('luckymaco:lamps') || '[]');
-    if (saved instanceof Array) {
-      lamps = saved.filter(function (n) { return MACOJI.indexOf(n) >= 0; }).slice(0, LAMPS);
-    }
+    var saved = parseInt(localStorage.getItem('luckymaco:lamps'), 10);
+    if (saved >= 0 && saved < LAMPS) lamps = saved;
   } catch (e) {}
 
   function drawLamps() {
     var h = '', i;
     for (i = 0; i < LAMPS; i++) {
-      var face = lamps[i] || 'neutral';
-      var cls = lamps[i] ? ' lit' : (i === lamps.length && lamps.length === LAMPS - 1 ? ' next' : '');
-      h += '<img class="lamp' + cls + '" src="' + ICON(face) +
-           '" alt="' + (lamps[i] || '') + '">';
+      /* Every lamp is Maco himself, not the face that won it — five different
+         Macoji read as five unrelated things rather than one meter filling. */
+      var cls = i < lamps ? ' lit'
+              : (i === lamps && lamps === LAMPS - 1 ? ' next' : '');
+      h += '<img class="lamp' + cls + '" src="' + FACE + '" alt="">';
     }
     lampRow.innerHTML = h;
-    belly.classList.toggle('full', lamps.length >= LAMPS);
+    belly.classList.toggle('full', lamps >= LAMPS);
   }
   function saveLamps() {
-    try { localStorage.setItem('luckymaco:lamps', JSON.stringify(lamps)); } catch (e) {}
+    try { localStorage.setItem('luckymaco:lamps', String(lamps)); } catch (e) {}
   }
   drawLamps();
 
@@ -1551,11 +1583,21 @@
         .onfinish = function () { el.remove(); };
       sJack();
       buzz([90, 60, 90, 60, 140, 80, 420]);
-      toast('<b>WILDFIRE</b><small>five wins &mdash; Maco is out</small>', 2800);
     }, lampsEls.length * 130 + 640);
 
     /* 4. and the machine goes up: Macoji down the whole page */
     setTimeout(rainDown, lampsEls.length * 130 + 1400);
+
+    /* 5. the result line becomes the Wildfire's own */
+    setTimeout(function () {
+      lastResult = { pattern: 'WILDFIRE', reels: lastResult ? lastResult.reels : [] };
+      msg.className = 'msg jackpot';
+      msg.innerHTML = '<b><img src="' + BODY + '" alt="">WILDFIRE</b>' +
+        '<small>Five wins &mdash; Maco is out, and all of ' + today() + ' with him</small>';
+      fitLine();
+      $('.share').classList.remove('off');
+      setTimeout(prepareCard, 80);
+    }, lampsEls.length * 130 + 2100);
   }
 
   function rainDown() {
@@ -1588,18 +1630,16 @@
   }
 
   /* Wins feed the meter. Filling it resets the lamps and sets the page alight. */
+  /* Returns true when this win completed the meter. The caller then skips its own
+     celebration entirely: a Wildfire replaces the Twins or Jackpot that triggered
+     it rather than arriving on top of it and leaving the smaller message on
+     screen afterwards. */
   function feedMeter(res) {
-    var add = res.pattern === 'TRIPLE' ? 2 : 1;
-    var face = res.pattern === 'TRIPLE' ? res.reels[0]
-             : (res.reels[0] === res.reels[1] ? res.reels[0] : res.reels[2]);
-    while (add-- > 0 && lamps.length < LAMPS) lamps.push(face);
+    lamps = Math.min(LAMPS, lamps + (res.pattern === 'TRIPLE' ? 2 : 1));
     drawLamps(); saveLamps();
-    if (lamps.length >= LAMPS) {
-      setTimeout(function () {
-        wildfire();
-        setTimeout(function () { lamps = []; drawLamps(); saveLamps(); }, 6200);
-      }, 1100);
-    }
+    if (lamps < LAMPS) return false;
+    setTimeout(wildfire, 520);                 // let the last lamp land first
+    return true;
   }
 
   /* ── load-in ──────────────────────────────────────────────────────────────
@@ -1638,6 +1678,7 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
+    if (lamps >= LAMPS) { lamps = 0; drawLamps(); saveLamps(); }   // spent last time
     $('.share').classList.add('off');
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
@@ -1718,13 +1759,17 @@
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
     var r = res.reels;
+    /* A win that completes the meter is a Wildfire, not a Twins that happens to
+       be followed by one. Feeding the meter first means the smaller message is
+       never written, so it cannot be left on screen afterwards. */
+    if ((res.pattern === 'TRIPLE' || res.pattern === 'PAIR') && feedMeter(res)) return;
     if (res.pattern === 'TRIPLE') {
       msg.className = 'msg jackpot';
       /* All three winners, cheering in sequence. */
       var win = '<img src="' + ICON(r[0]) + '" alt="">';
       msg.innerHTML = '<b>' + win + win + win + 'JACKPOT!</b><small>Triple ' +
         label(r[0]) + ' &mdash; all of ' + today() + ' is yours</small>';
-      celebrate();
+      celebrateNow();
     } else if (res.pattern === 'PAIR') {
       var dbl = r[0] === r[1] ? r[0] : r[2];
       msg.className = 'msg win';
@@ -1733,7 +1778,7 @@
       var twin = '<img src="' + ICON(dbl) + '" alt="">';
       msg.innerHTML = '<b>' + twin + twin + 'Twins!</b><small>Double ' +
         label(dbl) + ' kind of ' + today() + '</small>';
-      celebrateSmall(res);
+      celebrateSmallNow(res);
     } else {
       msg.className = 'msg';
       msg.innerHTML = '<b>' + label(r[0]) + ' &rarr; ' + label(r[1]) + ' &rarr; ' + label(r[2]) + '</b>' +
@@ -1767,8 +1812,7 @@
      Macoji fall. A jackpot does all of it loudly; a pair does a small version. */
   /* Jackpot escapes the reel window — the whole cabinet celebrates and it rains
      Macoji. That shower is the jackpot's signature and appears nowhere else. */
-  function celebrate() {
-    feedMeter(lastResult);
+  function celebrateNow() {
     marquee.classList.add('allon');              // every bulb, alternating
     setTimeout(function () { marquee.classList.remove('allon'); }, 2200);
     restart(cab, 'jackpot');
@@ -1786,8 +1830,7 @@
 
   /* A pair stays inside the window: payline lights, the two matching Macoji
      wiggle. No shake, no strobe, nothing falls. */
-  function celebrateSmall(res) {
-    feedMeter(res);
+  function celebrateSmallNow(res) {
     marquee.classList.add('allon');
     setTimeout(function () { marquee.classList.remove('allon'); }, 700);
     var band = $('.band');
