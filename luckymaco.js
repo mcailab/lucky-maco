@@ -481,8 +481,16 @@
     'font-size:calc(var(--cell) * 0.125);letter-spacing:.06em;',
     'text-transform:uppercase;color:var(--mut);overflow:hidden}',
 
+    /* One cell holding both, so the row keeps its height whichever is showing and
+       the machine never shifts when a result lands. */
+    '.actions{display:grid;place-items:center;margin-top:8px}',
+    '.actions > *{grid-area:1/1}',
+    '.progress{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--mut);',
+    'text-align:center;transition:opacity .25s,color .3s;white-space:nowrap}',
+    '.progress.off{opacity:0}',
+    '.progress.close{color:var(--gold)}',
     '.share{display:flex;align-items:center;justify-content:center;gap:7px;',
-    'margin:8px auto 0;padding:var(--sharepad) 16px;border-radius:999px;cursor:pointer;',
+    'padding:var(--sharepad) 16px;border-radius:999px;cursor:pointer;',
     'border:1px solid var(--gold-soft);background:transparent;color:var(--gold);',
     'font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;',
     '-webkit-tap-highlight-color:transparent;',
@@ -638,7 +646,7 @@
        game's character art and its payout ladder. Ours carries Maco and the
        five-lamp meter, which is the same job. */
     '.belly{position:relative;display:flex;align-items:center;justify-content:center;',
-    'gap:calc(var(--belly) * .10);height:var(--belly);margin-top:var(--gap);',
+    'gap:calc(var(--belly) * .055);height:var(--belly);margin-top:var(--gap);',
     'padding:0 12px;border-radius:14px;',
     'background:linear-gradient(180deg,rgba(255,201,107,.10),rgba(255,158,27,.03));',
     'border:1px solid var(--cab-br);transition:border-color .4s,background .4s}',
@@ -647,7 +655,7 @@
     /* Unlit lamps are a colour conversion, never transparency: fully opaque,
        just drained of colour. Fading them made them vanish against both themes;
        greyscale keeps the whole face readable, it is simply switched off. */
-    '.lamp{width:calc(var(--belly) * .64);height:calc(var(--belly) * .64);opacity:1;',
+    '.lamp{width:calc(var(--belly) * .60);height:calc(var(--belly) * .60);opacity:1;',
     'filter:grayscale(1) brightness(.78) contrast(.9);',
     'transition:filter .5s,transform .4s}',
     '.lamp.lit{filter:none;',
@@ -731,9 +739,11 @@
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
+        '<div class="actions">' +
+        '<div class="progress"></div>' +
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
-          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button>' +
+          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button></div>' +
         '<div class="belly"></div>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
@@ -1021,10 +1031,15 @@
        finished — or even started — when the card is made. */
     /* A Wildfire leaves the wheel full of whole Macos, so its card has to show the
        pile too — drawing the reels there would contradict the machine. */
-    var pileCard = lastResult &&
-                   (lastResult.pattern === 'TRIPLE' || lastResult.pattern === 'WILDFIRE') &&
+    /* A Grand leaves nothing in the wheel — everything flew out — so the card must
+       not draw reels or a pile there. Just the empty window and Maco standing in
+       it, which is exactly where the animation ends. */
+    var grandCard = lastResult && lastResult.pattern === 'WILDFIRE';
+    var pileCard = !grandCard && lastResult && lastResult.pattern === 'TRIPLE' &&
                    lastPile.length && dumpBox.children.length === lastPile.length;
-    if (pileCard) {
+    if (grandCard) {
+      /* nothing in the window: he is the whole picture */
+    } else if (pileCard) {
       for (i = 0; i < lastPile.length; i++) {
         var pd = lastPile[i], pim = dumpBox.children[i];
         if (!pim || !pim.complete || !pim.naturalWidth) continue;
@@ -1154,8 +1169,8 @@
     if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
                    'in Maco faces.' + tail;
     if (r.pattern === 'WILDFIRE') {
-      return 'LUCKY MACO! Five wins set every Maco loose \u2014 the rarest thing the ' +
-             'machine does, about one pull in twenty-five.' + tail;
+      return 'LUCKY MACO! Eight lamps set every Maco loose \u2014 the rarest thing ' +
+             'the machine does, about one pull in twenty-five.' + tail;
     }
     var line = 'My ' + day + ' on Lucky Maco: ' +
       label(r.reels[0]) + ' morning, ' +
@@ -1423,9 +1438,31 @@
      falls, and settles the moment it touches one already placed. Trying several
      x's and keeping the one that settles LOWEST is what makes a heap fill its
      gaps and mound up rather than tower. Shared by the hopper and the jackpot. */
-  var lastPile = [], lastResult = null;
+  var lastPile = [], lastResult = null, lastMaco = null;
   function clearDrops() {
     while (dumpBox.firstChild) dumpBox.removeChild(dumpBox.firstChild);
+  }
+
+  /* Pulling the lever after a jackpot used to blink the pile out of existence and
+     snap a full hopper back — the machine reset between two frames. The pile now
+     falls out through the bottom of the window while the reels fade back in, all
+     inside the first half-second of the spin. */
+  function drainPile(done) {
+    var kids = dumpBox.children;
+    if (!kids.length) { done(); return; }
+    var H = $('.window').getBoundingClientRect().height;
+    for (var i = 0; i < kids.length; i++) {
+      (function (el, i) {
+        var cur = getComputedStyle(el).transform;
+        el.animate([
+          { transform: cur === 'none' ? 'translateY(0)' : cur, opacity: 1 },
+          { transform: 'translateY(' + (H + 90) + 'px)', opacity: 1 }
+        ], { duration: 420 + Math.random() * 220,
+             delay: i * 9,
+             easing: 'cubic-bezier(.45,0,.9,.55)', fill: 'forwards' });
+      })(kids[i], i);
+    }
+    setTimeout(function () { clearDrops(); done(); }, 620);
   }
   /* The floor swings open and the stock drops through it. The frame itself never
      moves — an empty hopper still reads as part of the machine. */
@@ -1438,14 +1475,38 @@
   }
   /* Called at the start of a pull, not at the end of a dump: after a jackpot the
      machine sits empty with the pile on the floor until you play again. */
-  function restock() {
-    clearDrops();
-    $('.window').classList.remove('emptied');    // reels refill with the next spin
-    if (!hstock.children.length) {
-      hopper.classList.remove('open');           // floor swings shut
-      fillHopper();
-      pourHopper();
+  /* Reload the way the machine loaded in the first place: the hopper tips in and
+     the reel cells drop from above. Fading them back left a blank window for a
+     beat, which read as the machine glitching rather than restocking. */
+  function reloadReels() {
+    var CELL = cellPx(), first = lastResult ? TRAIL : 0;
+    for (var i = 0; i < strips.length; i++) {
+      for (var k = 0; k < ROWS; k++) {
+        var cel = strips[i].children[first + k];
+        if (!cel) continue;
+        cel.animate([
+          { transform: 'translateY(-' + (CELL * 3.4) + 'px)', opacity: 0 },
+          { transform: 'translateY(0)', opacity: 1 }
+        ], { duration: 460, delay: 120 + i * 70 + (ROWS - 1 - k) * 90,
+             easing: 'cubic-bezier(.34,1.45,.6,1)', fill: 'backwards' });
+      }
     }
+  }
+
+  function restock(done) {
+    var refill = function () {
+      var wasDark = $('.window').classList.contains('emptied');
+      $('.window').classList.remove('emptied');
+      if (!hstock.children.length) {
+        hopper.classList.remove('open');         // floor swings shut
+        fillHopper();
+        pourHopper();
+      }
+      if (wasDark) reloadReels();
+      if (done) done(wasDark);
+    };
+    if (dumpBox.children.length) drainPile(refill);   // let it fall out first
+    else { clearDrops(); refill(); }
   }
   /* count = how many Macoji fall; empty = whether the hopper drains with them.
      Jackpot dumps the lot, a pair just spills a few. */
@@ -1499,11 +1560,11 @@
      A collection meter, the standard slot mechanic: wins light lamps across
      pulls, and filling them triggers something the base game cannot. Each lamp
      lights with the face that actually won it, so the panel doubles as a record
-     of your last five wins. Twins lights one, a jackpot lights two — otherwise
-     the rarer result would be worth no more than the common one.
+     of the wins that got you there. Twins lights two, a jackpot lights three —
+     otherwise the rarer result would be worth no more than the common one.
 
-       0.10 x 1  +  0.05 x 2  =  0.20 lamps per pull  ->  a Wildfire every ~25 */
-  var LAMPS = 5, lamps = 0;
+       0.10 x 2  +  0.05 x 3  =  0.35 lamps per pull  ->  eight lit every ~23 pulls */
+  var LAMPS = 8, lamps = 0;
   var belly = $('.belly'), lampRow = belly;
 
   try {
@@ -1522,6 +1583,14 @@
     }
     lampRow.innerHTML = h;
     belly.classList.toggle('full', lamps >= LAMPS);
+    var pr = $('.progress');
+    if (pr) {
+      var left = LAMPS - lamps;
+      pr.classList.toggle('close', left === 1);
+      pr.innerHTML = left <= 0 ? 'Maco is free'
+        : left === 1 ? 'One more &mdash; Maco is nearly free'
+        : lamps + ' of ' + LAMPS + ' &mdash; light them all to free Maco';
+    }
   }
   function saveLamps() {
     try { localStorage.setItem('luckymaco:lamps', String(lamps)); } catch (e) {}
@@ -1533,104 +1602,149 @@
   /* A sequence rather than one burst — the five faces you collected become Maco,
      he bursts out of the belly, grows across the page, and only then does the
      machine go up. Each phase hands off to the next. */
-  function wildfire() {
-    /* One pattern for the whole sequence rather than a burst inside a phase:
-       navigator.vibrate replaces whatever is running, so staged calls would cut
-       each other off. Five taps on the 130ms beat of the lamps releasing, a gap
-       while they fly, three rising pulses as Maco climbs, then a long hold.
-       Nothing else in the game vibrates for two seconds. */
-    buzz([55, 75, 55, 75, 55, 75, 55, 75, 55,
-          280,
-          80, 70, 120, 70, 170, 90,
-          720]);
-    var box = belly.getBoundingClientRect();
-    var lampsEls = belly.querySelectorAll('.lamp');
-    var i;
+  /* Everything the machine holds becomes a whole Maco and escapes upward. The
+     jackpot rains DOWN — gravity, the machine spilling. This goes UP, which reads
+     as escape without needing a word of explanation. */
+  function flyOut(img, delay, opts) {
+    opts = opts || {};
+    var r = img.getBoundingClientRect();
+    var size = (opts.size || img.offsetWidth) || 40;
+    var el = document.createElement('img');
+    el.className = 'bigmaco';
+    el.src = BODY;
+    el.style.width = el.style.height = size + 'px';
+    el.style.left = (r.left + r.width / 2 - size / 2) + 'px';
+    el.style.top = (r.top + r.height / 2 - size / 2) + 'px';
+    root.appendChild(el);
+    var drift = (Math.random() - 0.5) * 300;
+    var lift = window.innerHeight * (0.7 + Math.random() * 0.45);
+    var turn = (Math.random() - 0.5) * 220;
+    var dur = 2500 + Math.random() * 900;
+    el.animate([
+      { transform: 'translate(0,0) scale(.55) rotate(0deg)', opacity: 0 },
+      { transform: 'translate(' + (drift * .1) + 'px,-30px) scale(1.22) rotate(' +
+        (turn * .06) + 'deg)', opacity: 1, offset: .18,
+        easing: 'cubic-bezier(.2,1.4,.4,1)' },
+      { transform: 'translate(' + (drift * .5) + 'px,' + (-lift * .5) + 'px) scale(1.02) rotate(' +
+        (turn * .5) + 'deg)', opacity: 1, offset: .6 },
+      { transform: 'translate(' + drift + 'px,' + (-lift) + 'px) scale(.85) rotate(' +
+        turn + 'deg)', opacity: 0 }
+    ], { duration: dur, delay: delay,
+         easing: 'cubic-bezier(.3,0,.5,1)', fill: 'backwards' })
+      .onfinish = function () { el.remove(); };
+    /* onfinish never lands if the tab is hidden mid-flight, and 30-odd of these
+       would be left pinned over the page. Sweep them regardless. */
+    setTimeout(function () { el.remove(); }, delay + dur + 400);
+    if (opts.hide !== false) {
+      img.animate([{ opacity: 1 }, { opacity: 0 }],
+                  { duration: 200, delay: delay, fill: 'forwards' });
+    }
+  }
 
-    /* 1. the five flash in turn, left to right */
+  function wildfire() {
+    /* One pattern for the whole sequence: navigator.vibrate replaces whatever is
+       running, so staged calls would cut each other off. */
+    buzz([55, 75, 55, 75, 55, 75, 55, 75, 55, 280,
+          80, 70, 120, 70, 170, 90, 720]);
+
+    var lampsEls = belly.querySelectorAll('.lamp');
+    var i, t = 0;
+
+    /* 1. the belly glows, face by face */
     for (i = 0; i < lampsEls.length; i++) {
       lampsEls[i].animate([
-        { transform: 'scale(1)',   filter: 'none' },
-        { transform: 'scale(1.5)', filter: 'brightness(1.9) drop-shadow(0 0 16px #FFC96B)' },
-        { transform: 'scale(1)',   filter: 'none' }
-      ], { duration: 420, delay: i * 130, easing: 'ease-out' });
+        { filter: 'none', transform: 'scale(1)' },
+        { filter: 'brightness(2) drop-shadow(0 0 18px #FFC96B)', transform: 'scale(1.35)' },
+        { filter: 'none', transform: 'scale(1)' }
+      ], { duration: 460, delay: i * 90, easing: 'ease-out' });
     }
+    t = lampsEls.length * 90 + 320;
 
-    /* 2. they break out. The point of the game is to set Maco loose, so they lift
-       up and away rather than collapsing inward as if being consumed. */
-    var mid = box.left + box.width / 2;
-    setTimeout(function () {
-      for (var k = 0; k < lampsEls.length; k++) {
-        var sway = (k - (lampsEls.length - 1) / 2) * 26;
-        lampsEls[k].animate([
-          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
-          { transform: 'translate(' + (sway * .4) + 'px,-36px) scale(1.28) rotate(' +
-            (sway * .18) + 'deg)', opacity: 1, offset: .35 },
-          { transform: 'translate(' + sway + 'px,-200px) scale(.5) rotate(' +
-            (sway * .5) + 'deg)', opacity: 0 }
-        ], { duration: 720, delay: k * 60,
-             easing: 'cubic-bezier(.3,-0.2,.5,1)', fill: 'forwards' });
-      }
-    }, lampsEls.length * 130 + 240);
+    /* 1b. then all eight rattle together — they know they are about to get out */
+    for (i = 0; i < lampsEls.length; i++) {
+      lampsEls[i].animate([
+        { transform: 'translate(0,0) rotate(0deg)' },
+        { transform: 'translate(-2px,1px) rotate(-7deg)' },
+        { transform: 'translate(2px,-1px) rotate(7deg)' },
+        { transform: 'translate(-2px,0) rotate(-5deg)' },
+        { transform: 'translate(0,0) rotate(0deg)' }
+      ], { duration: 420, delay: t - 120, iterations: 2, easing: 'linear' });
+    }
+    t += 640;
 
-    /* 3. Maco bursts out of the belly, grows, and rises up the page */
-    setTimeout(function () {
-      var el = document.createElement('img');
-      el.className = 'bigmaco';
-      el.src = BODY;
-      var S0 = Math.max(28, box.height * .5);
-      el.style.width = el.style.height = S0 + 'px';
-      el.style.left = (mid - S0 / 2) + 'px';
-      el.style.top = (box.top + box.height / 2 - S0 / 2) + 'px';
-      root.appendChild(el);
-      var rise = Math.min(box.top - 40, window.innerHeight * .42);
-      var grow = Math.min(7.5, (window.innerWidth * .52) / S0);
-      el.animate([
-        { transform: 'translateY(0) scale(.3) rotate(-8deg)', opacity: 0, offset: 0 },
-        { transform: 'translateY(' + (-rise * .45) + 'px) scale(' + (grow * .55) +
-          ') rotate(6deg)', opacity: 1, offset: .3,
-          easing: 'cubic-bezier(.2,.9,.3,1)' },
-        { transform: 'translateY(' + (-rise) + 'px) scale(' + grow +
-          ') rotate(-3deg)', opacity: 1, offset: .58, easing: 'ease-out' },
-        { transform: 'translateY(' + (-rise) + 'px) scale(' + grow +
-          ') rotate(2deg)', opacity: 1, offset: .78 },
-        { transform: 'translateY(' + (-rise - 60) + 'px) scale(' + (grow * 1.06) +
-          ') rotate(0deg)', opacity: 0, offset: 1 }
-      ], { duration: 2400, easing: 'linear', fill: 'both' })
-        .onfinish = function () { el.remove(); };
-      sJack();
-    }, lampsEls.length * 130 + 640);
+    /* 2. each becomes a whole Maco and leaps out, one at a time */
+    for (i = 0; i < lampsEls.length; i++) {
+      flyOut(lampsEls[i], t + i * 130, { size: lampsEls[i].offsetWidth * 1.7 });
+    }
+    t += lampsEls.length * 130 + 260;
 
-    /* 4. and the machine goes up: Macoji down the whole page */
-    /* The machine has to visibly give everything up, or releasing the five reads
-       as nothing happening: the hopper opens, the reels go dark, and what was
-       inside comes back as whole Macos filling the wheel. */
+    /* 3. the hopper and the reels go the same way */
     setTimeout(function () {
       emptyHopper();
       $('.window').classList.add('emptied');
-    }, lampsEls.length * 130 + 900);
-    setTimeout(function () {
-      dump(28, true, BODY);
-      rainDown(BODY);
-    }, lampsEls.length * 130 + 1500);
+    }, t - 200);
 
-    /* 4b. the sockets come back empty. Left as they were, the release animation
-       holds them at zero opacity and the belly reads as a blank box rather than a
-       meter waiting to be filled again. */
+    var stock = hstock.children, cells = [], k;
+    for (i = 0; i < strips.length; i++) {
+      for (k = 0; k < ROWS; k++) {
+        var cel = strips[i].children[(lastResult ? TRAIL : 0) + k];
+        if (cel) cells.push(cel.querySelector('img'));
+      }
+    }
+    for (i = 0; i < stock.length; i++) {
+      flyOut(stock[i], t + i * 55, { size: stock[i].offsetWidth * 1.5, hide: false });
+    }
+    for (i = 0; i < cells.length; i++) {
+      flyOut(cells[i], t + stock.length * 55 + i * 80,
+             { size: cells[i].offsetWidth * 1.1, hide: false });
+    }
+    var lastAt = t + stock.length * 55 + cells.length * 80;
+
+    /* 3b. a beat of silence — the machine is empty and nothing moves */
+    var lastAtPause = 420;
+
+    /* 4. the last one does not leave — it grows to fill the window, then waves */
+    setTimeout(function () {
+      var wr = $('.window').getBoundingClientRect();
+      var S = wr.height * 0.86;
+      var el = document.createElement('img');
+      el.className = 'bigmaco';
+      el.src = BODY;
+      el.style.width = el.style.height = S + 'px';
+      el.style.left = (wr.left + wr.width / 2 - S / 2) + 'px';
+      el.style.top = (wr.top + wr.height / 2 - S / 2) + 'px';
+      root.appendChild(el);
+      el.animate([
+        { transform: 'translateY(70px) scale(.10) rotate(-16deg)', opacity: 0 },
+        { transform: 'translateY(-14px) scale(1.16) rotate(6deg)', opacity: 1, offset: .5,
+          easing: 'cubic-bezier(.2,1.5,.4,1)' },
+        { transform: 'translateY(4px) scale(.97) rotate(-3deg)', opacity: 1, offset: .72 },
+        { transform: 'translateY(0) scale(1) rotate(0deg)', opacity: 1 }
+      ], { duration: 1050, easing: 'ease-out', fill: 'forwards' });
+      /* and once he has landed, he waves */
+      setTimeout(function () {
+        el.animate([
+          { transform: 'rotate(0deg)' }, { transform: 'rotate(-8deg)' },
+          { transform: 'rotate(6deg)' },  { transform: 'rotate(-4deg)' },
+          { transform: 'rotate(0deg)' }
+        ], { duration: 900, iterations: 2, easing: 'ease-in-out' });
+      }, 1100);
+      sJack();
+      lastMaco = el;                       // stays until the next pull
+    }, lastAt + lastAtPause);
+
+    /* 5. the result line is the Grand's own */
     setTimeout(function () {
       lamps = 0; drawLamps(); saveLamps();
-    }, lampsEls.length * 130 + 1250);
-
-    /* 5. the result line becomes the Wildfire's own */
-    setTimeout(function () {
       lastResult = { pattern: 'WILDFIRE', reels: lastResult ? lastResult.reels : [] };
       msg.className = 'msg jackpot';
       msg.innerHTML = '<b><img src="' + BODY + '" alt="">LUCKY MACO!</b>' +
         '<small>You&rsquo;re super lucky today</small>';
       fitLine();
       $('.share').classList.remove('off');
-      setTimeout(prepareCard, 80);
-    }, lampsEls.length * 130 + 2100);
+      $('.progress').classList.add('off');
+      setTimeout(prepareCard, 90);
+    }, lastAt + lastAtPause + 1150);
   }
 
   function rainDown(src) {
@@ -1668,7 +1782,7 @@
      it rather than arriving on top of it and leaving the smaller message on
      screen afterwards. */
   function feedMeter(res) {
-    lamps = Math.min(LAMPS, lamps + (res.pattern === 'TRIPLE' ? 2 : 1));
+    lamps = Math.min(LAMPS, lamps + (res.pattern === 'TRIPLE' ? 3 : 2));
     drawLamps(); saveLamps();
     if (lamps < LAMPS) return false;
     setTimeout(wildfire, 520);                 // let the last lamp land first
@@ -1712,10 +1826,14 @@
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
+    $('.progress').classList.remove('off');
+    if (lastMaco) { lastMaco.remove(); lastMaco = null; }
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
     idleShowing = false;                         // a result replaces the prompt
-    restock();                                   // sweep the floor, reload the hopper
+    var reloading = dumpBox.children.length > 0 ||
+                    $('.window').classList.contains('emptied');
+    restock();                                   // sweep the floor, reload the machine
     sClunk(); hPull();
     var res = draw(force);
     msg.className = 'msg';
@@ -1734,9 +1852,13 @@
       strip.style.transform = 'translateY(0)';
       strip.innerHTML = cells(STRIP, res.reels[i], AT);
       void strip.offsetHeight;                          // force reflow
-      strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.5,.2,.25,1)';
-      strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
-      setTimeout(function () { sStop(); hStop(); if (++done === 3) settle(res); }, dur[i] + 60);
+      var lead = reloading ? 620 : 0;           // let the machine restock first
+      setTimeout(function () {
+        strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.5,.2,.25,1)';
+        strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
+      }, lead);
+      setTimeout(function () { sStop(); hStop(); if (++done === 3) settle(res); },
+                 lead + dur[i] + 60);
     });
   }
 
@@ -1787,6 +1909,7 @@
     stopSpinSound();
     lever.classList.remove('busy');
     $('.share').classList.remove('off');         // there is now something to share
+    $('.progress').classList.add('off');
     setTimeout(prepareCard, 60);                 // ready before the button is pressed
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
