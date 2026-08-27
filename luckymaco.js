@@ -1091,7 +1091,8 @@
       var lampEls = belly.querySelectorAll('.lamp');
       for (i = 0; i < lampEls.length; i++) {
         var lrct = rel(lampEls[i]), lw = lampEls[i].offsetWidth * SC;
-        var isLit = lampEls[i].classList.contains('lit');
+        var isLit = lampEls[i].classList.contains('lit') ||
+                    (lastResult && lastResult.pattern === 'WILDFIRE');
         c.save();
         if (!isLit) c.filter = 'grayscale(1) brightness(.78) contrast(.9)';
         c.drawImage(lampEls[i], lrct.cx - lw / 2, lrct.cy - lw / 2, lw, lw);
@@ -1533,6 +1534,15 @@
      he bursts out of the belly, grows across the page, and only then does the
      machine go up. Each phase hands off to the next. */
   function wildfire() {
+    /* One pattern for the whole sequence rather than a burst inside a phase:
+       navigator.vibrate replaces whatever is running, so staged calls would cut
+       each other off. Five taps on the 130ms beat of the lamps releasing, a gap
+       while they fly, three rising pulses as Maco climbs, then a long hold.
+       Nothing else in the game vibrates for two seconds. */
+    buzz([55, 75, 55, 75, 55, 75, 55, 75, 55,
+          280,
+          80, 70, 120, 70, 170, 90,
+          720]);
     var box = belly.getBoundingClientRect();
     var lampsEls = belly.querySelectorAll('.lamp');
     var i;
@@ -1589,7 +1599,6 @@
       ], { duration: 2400, easing: 'linear', fill: 'both' })
         .onfinish = function () { el.remove(); };
       sJack();
-      buzz([90, 60, 90, 60, 140, 80, 420]);
     }, lampsEls.length * 130 + 640);
 
     /* 4. and the machine goes up: Macoji down the whole page */
@@ -1604,6 +1613,13 @@
       dump(28, true, BODY);
       rainDown(BODY);
     }, lampsEls.length * 130 + 1500);
+
+    /* 4b. the sockets come back empty. Left as they were, the release animation
+       holds them at zero opacity and the belly reads as a blank box rather than a
+       meter waiting to be filled again. */
+    setTimeout(function () {
+      lamps = 0; drawLamps(); saveLamps();
+    }, lampsEls.length * 130 + 1250);
 
     /* 5. the result line becomes the Wildfire's own */
     setTimeout(function () {
@@ -1695,7 +1711,6 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
-    if (lamps >= LAMPS) { lamps = 0; drawLamps(); saveLamps(); }   // spent last time
     $('.share').classList.add('off');
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
