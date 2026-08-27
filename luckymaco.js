@@ -1626,7 +1626,7 @@
       var left = LAMPS - lamps;
       pr.classList.toggle('close', left === 1);
       pr.innerHTML = left === 1 ? 'One lamp from free'
-                                : 'Light up all ' + word(LAMPS) + ' &mdash; Maco goes free';
+                                : 'Light all ' + word(LAMPS) + ' &mdash; set every Maco free';
     }
   }
   function saveLamps() {
