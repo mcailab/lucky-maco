@@ -399,8 +399,11 @@
     'transition:transform .5s cubic-bezier(.45,0,.25,1),opacity .5s}',
     '.flap.l{left:9px}',
     '.flap.r{right:9px}',
-    '.hopper.open .flap.l{transform:translateX(-86%);opacity:0}',
-    '.hopper.open .flap.r{transform:translateX(86%);opacity:0}',
+    /* They park at the ends rather than fading out. Gone entirely, the hopper
+       read as a blank frame with no sign of a mechanism; as stubs either side of
+       a dark slot, it plainly reads as open. */
+    '.hopper.open .flap.l{transform:translateX(-64%)}',
+    '.hopper.open .flap.r{transform:translateX(64%)}',
     /* Jackpot dump fills the reel window — the machine's own container. Piling it
        over the whole cabinet buried the result text. */
     '.dump{position:absolute;inset:0;overflow:hidden;border-radius:16px;',
@@ -1018,19 +1021,20 @@
   /* Written for whoever receives it, not scraped off the screen. The machine tells
      the player "all of Thursday is yours"; a shared message has to say "mine",
      name the game, and invite them to play. */
+  /* Written so a stranger can follow it. Naming the three parts of the day makes
+     the faces mean something without knowing the game, and the same opening on
+     every message gives it a shape people recognise after seeing two. */
   function shareText() {
-    var r = lastResult, day = today(), tail = '\nYour turn \u2192 ' + EMBED_HOME;
-    if (!r) return 'Lucky Maco \u2014 a little Macoji slot machine.' + tail;
-    var f = label(r.reels[0]);
-    if (r.pattern === 'TRIPLE') {
-      return 'JACKPOT on Lucky Maco \u2014 triple ' + f + '! All of ' + day + ' is mine.' + tail;
-    }
-    if (r.pattern === 'PAIR') {
-      var dbl = label(r.reels[0] === r.reels[1] ? r.reels[0] : r.reels[2]);
-      return 'Twins on Lucky Maco \u2014 double ' + dbl + '. Not a bad ' + day + '.' + tail;
-    }
-    return 'My ' + day + ' on Lucky Maco: ' + f + ' \u2192 ' +
-           label(r.reels[1]) + ' \u2192 ' + label(r.reels[2]) + '.' + tail;
+    var r = lastResult, day = today(), tail = '\nTry your luck \u2192 ' + EMBED_HOME;
+    if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
+                   'in Maco faces.' + tail;
+    var line = 'My ' + day + ' on Lucky Maco: ' +
+      label(r.reels[0]) + ' morning, ' +
+      label(r.reels[1]) + ' afternoon, ' +
+      label(r.reels[2]) + ' evening.';
+    if (r.pattern === 'TRIPLE') line += ' Three of a kind is the jackpot.';
+    else if (r.pattern === 'PAIR') line += ' Two of a kind.';
+    return line + tail;
   }
 
   /* navigator.share only works while the click's user activation is still live.
