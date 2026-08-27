@@ -423,17 +423,24 @@
     /* These name the three parts of the day, so they must be readable. They were
        on --faint, the tone reserved for near-invisible hints. Also pinned to 84px
        while the cells shrink to 66px on mobile, so they no longer lined up. */
-    '.labels span{width:var(--cell);text-align:center;font-size:10.5px;font-weight:700;',
-    'letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}',
+    /* Size with the cell, not fixed. At 10.5px "AFTERNOON" measures ~77px, which
+       overflows a 66px cell on mobile and a 50px one on a short screen — the
+       labels ran into each other. Ratio chosen so the longest word always fits. */
+    '.labels span{width:var(--cell);text-align:center;font-weight:700;',
+    'font-size:calc(var(--cell) * 0.125);letter-spacing:.06em;',
+    'text-transform:uppercase;color:var(--mut);overflow:hidden}',
 
     '.share{display:flex;align-items:center;justify-content:center;gap:7px;',
     'margin:10px auto 0;padding:8px 16px;border-radius:999px;cursor:pointer;',
     'border:1px solid var(--gold-soft);background:transparent;color:var(--gold);',
     'font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;',
-    '-webkit-tap-highlight-color:transparent;transition:background .15s,transform .12s}',
+    '-webkit-tap-highlight-color:transparent;',
+    'transition:background .15s,transform .12s,opacity .22s}',
     '.share:hover{background:var(--gold-soft)}',
     '.share:active{transform:scale(.95)}',
-    '.share[hidden]{display:none}',
+    /* Always occupies its space. Using [hidden] took it out of the flow, so the
+       cabinet grew the moment a result landed and the whole machine shifted. */
+    '.share.off{visibility:hidden;opacity:0;pointer-events:none}',
     '.share svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;',
     'stroke-linecap:round;stroke-linejoin:round}',
     '.msg{min-height:56px;display:grid;place-items:center;text-align:center;margin-top:12px;padding:0 4px}',
@@ -584,9 +591,11 @@
            'opacity:1;pointer-events:none}' +
            '.stack{pointer-events:auto}.cab{transform:none}' +
            /* On its own page the controls belong to the page, not the machine —
-              pinned to the top edge so the cabinet can centre in what is left. */
+              pinned to the top edge. The scrim then reserves that height, so the
+              machine centres in what is left instead of sliding underneath. */
            '.bar{position:fixed;top:0;left:0;right:0;width:auto;height:auto;' +
-           'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' : ''
+           'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' +
+           '.scrim{padding-top:76px}' : ''
   ].join('');
 
   root.innerHTML =
@@ -627,7 +636,7 @@
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
-        '<button class="share" hidden>' +
+        '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
           '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button>' +
         '<div class="sheet">' +
@@ -858,12 +867,15 @@
     /* hopper, then whatever is in it — clipped to the tray, the way .hstock's
        overflow:hidden clips it on screen. Without this the heap spills out of
        the box, since the frame is a window onto a wider pile by design. */
+    var jackpotNow = lastResult && lastResult.pattern === 'TRIPLE' && dumpBox.children.length;
     var hr = panel(hopper, dark ? 'rgba(255,255,255,.05)' : 'rgba(27,42,91,.05)', line, 12);
     var i, kids = hstock.children;
-    c.save();
-    rrect(c, hr.x, hr.y, hr.w, hr.h, 12 * SC); c.clip();
-    for (i = 0; i < kids.length; i++) sprite(kids[i]);
-    c.restore();
+    if (!jackpotNow) {                           // after a jackpot it is empty
+      c.save();
+      rrect(c, hr.x, hr.y, hr.w, hr.h, 12 * SC); c.clip();
+      for (i = 0; i < kids.length; i++) sprite(kids[i]);
+      c.restore();
+    }
 
     /* reel window: the pile if there is one, otherwise the grid */
     var win = $('.window');
@@ -879,10 +891,25 @@
       var q = el.getBoundingClientRect();
       return q.bottom > wbox.top - 4 && q.top < wbox.bottom + 4;
     };
-    /* Always the reels, never the pile. The card has to say WHAT you got, and a
-       heap of 28 tumbled Macoji cannot show that a jackpot was three Fires — the
-       result is exactly the thing it buries. So the card is the machine at the
-       instant the reels stopped: winning row on the payline, hopper still full. */
+    /* A jackpot shows the pile: the machine emptied itself, and that is the
+       picture worth sending. Drawn from the resting places recorded as they fell,
+       not from live rects, so it does not matter whether the drop animation has
+       finished — or even started — when the card is made. */
+    var pileCard = lastResult && lastResult.pattern === 'TRIPLE' &&
+                   lastPile.length && dumpBox.children.length === lastPile.length;
+    if (pileCard) {
+      for (i = 0; i < lastPile.length; i++) {
+        var pd = lastPile[i], pim = dumpBox.children[i];
+        if (!pim || !pim.complete || !pim.naturalWidth) continue;
+        var PS = pim.offsetWidth || 50, ps = PS * SC;
+        c.save();
+        c.translate(wr.x + pd.x * SC,
+                    wr.y + (pd.y - FACE_Y * PS + PS / 2) * SC);
+        c.rotate(pd.r * Math.PI / 180);
+        c.drawImage(pim, -ps / 2, -ps / 2, ps, ps);
+        c.restore();
+      }
+    } else {
     /* Pick the cells by index rather than by where they happen to be on screen.
        After a spin the window shows TRAIL..TRAIL+ROWS-1 by construction, so this
        is exact and does not depend on the transform having been composited yet.
@@ -897,6 +924,7 @@
     var bd = rel($('.band'));
     c.strokeStyle = lit; c.lineWidth = 2.5 * SC;
     rrect(c, bd.x, bd.y, bd.w, bd.h, 10 * SC); c.stroke();
+    }
     c.restore();
 
     /* labels */
@@ -1320,7 +1348,7 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
-    $('.share').hidden = true;
+    $('.share').classList.add('off');
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
     idleShowing = false;                         // a result replaces the prompt
@@ -1395,7 +1423,7 @@
     lastResult = res;
     stopSpinSound();
     lever.classList.remove('busy');
-    $('.share').hidden = false;                  // there is now something to share
+    $('.share').classList.remove('off');         // there is now something to share
     setTimeout(prepareCard, 60);                 // ready before the button is pressed
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
