@@ -251,9 +251,18 @@
        windows — so the reels were being shrunk almost everywhere.
        --gap is the single spacing between stacked parts, so marquee-to-hopper and
        hopper-to-reels cannot drift apart. */
-    ':host{--maxcell:93px;',
-    '--cell:min(var(--maxcell), calc((min(360px, 88vw) - 40px) / 3));',
-    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:18px}',
+    /* --cabw is the cabinet's width; everything else is measured against it. It
+       was pinned at 360px, so on a 1440px desktop the machine was 25% of the
+       window while filling 88% of a phone — the reels looked small on desktop
+       even though they were the same pixels. */
+    ':host{--cabw:min(360px, 88vw);--maxcell:93px;',
+    /* 40 cabinet padding + 16 window padding + 8 for the two gaps between cells,
+       so the three cells actually fill the window instead of floating in it. */
+    '--cell:min(var(--maxcell), calc((var(--cabw) - 64px) / 3));',
+    '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px}',
+    '@media (min-width:620px) and (min-height:880px){',
+    ':host{--cabw:440px;--maxcell:118px;--hop:84px;--mqpad:18px;--msg:62px;',
+    '--sharepad:10px;--gap:24px}}',
     '@media (max-height:800px){:host{--maxcell:80px;--hop:68px;--mqpad:12px;',
     '--msg:50px;--sharepad:7px;--gap:15px}}',
     '@media (max-height:730px){:host{--maxcell:68px;--hop:60px;--mqpad:10px;',
@@ -305,7 +314,7 @@
     'background:var(--close-bg);color:var(--close-fg);font-size:17px;line-height:1;cursor:pointer}',
     '.close:hover{filter:brightness(.92)}',
     '.stack{display:flex;flex-direction:column;align-items:center;gap:11px;',
-    'width:min(360px,88vw)}',
+    'width:var(--cabw)}',
     /* One row, always. Fixed height so revealing the test buttons cannot shift
        the machine down or change its height by a pixel. */
     /* Three tracks: the test buttons sit in the middle one so they stay centred
@@ -402,7 +411,11 @@
     /* hopper — the machine's visible supply of Macoji, sitting above the reels.
        The frame stays put on a jackpot; only its floor opens and the stock falls
        through. */
-    '.hopper{position:relative;height:var(--hop);margin:0 0 var(--gap);',
+    /* isolate, or the flaps' z-index escapes: position:relative with z-index
+       auto creates no stacking context, so they competed with the lever at
+       cabinet level and painted over it. */
+    '.hopper{position:relative;isolation:isolate;height:var(--hop);',
+    'margin:0 0 var(--gap);',
     'border-radius:12px;',
     'background:var(--reel);border:1px solid var(--cab-br)}',
     '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
@@ -420,21 +433,18 @@
     '.hopper.open .hgap{opacity:1}',
     '.flap{position:absolute;bottom:0;width:calc(50% - 9px);height:3px;',
     'border-radius:2px;background:var(--gold-lit);z-index:2;',
-    'transition:transform .5s cubic-bezier(.45,0,.25,1),opacity .5s}',
+    'transition:opacity .45s ease}',
     '.flap.l{left:9px}',
     '.flap.r{right:9px}',
-    /* They park at the ends rather than fading out. Gone entirely, the hopper
-       read as a blank frame with no sign of a mechanism; as stubs either side of
-       a dark slot, it plainly reads as open. */
-    '.hopper.open .flap.l{transform:translateX(-64%)}',
-    '.hopper.open .flap.r{transform:translateX(64%)}',
+    '.hopper.open .flap{opacity:0}',
     /* Jackpot dump fills the reel window — the machine's own container. Piling it
        over the whole cabinet buried the result text. */
     '.dump{position:absolute;inset:0;overflow:hidden;border-radius:16px;',
     'pointer-events:none;z-index:3}',
     '.drop{position:absolute;will-change:transform;',
     'filter:drop-shadow(0 4px 9px rgba(0,0,0,.4))}',
-    '.window{position:relative;display:flex;gap:4px;justify-content:center;padding:8px;border-radius:18px;',
+    '.window{position:relative;display:flex;gap:4px;justify-content:center;',
+    'padding:var(--winpad);border-radius:18px;',
     'background:var(--win);border:2px solid var(--win-br);box-shadow:var(--win-sh)}',
     '.reel{width:var(--cell);height:calc(var(--cell) * ' + ROWS + ');overflow:hidden;',
     'border-radius:12px;background:var(--reel);',
@@ -445,10 +455,10 @@
     '.cell img{width:calc(var(--cell) * .86);height:calc(var(--cell) * .86);display:block}',
     /* the pay row — the only one that counts */
     '.band{position:absolute;left:7px;right:7px;pointer-events:none;border-radius:10px;',
-    'top:calc(12px + var(--cell) * ' + CENTRE + ');height:var(--cell);',
+    'top:calc(var(--winpad) + var(--cell) * ' + CENTRE + ');height:var(--cell);',
     'background:linear-gradient(90deg,transparent,var(--gold-soft),transparent);',
     'border-top:1px solid var(--gold-lit);border-bottom:1px solid var(--gold-lit);opacity:.55}',
-    '.pip{position:absolute;top:calc(12px + var(--cell) * ' + (CENTRE + 0.5) + ' - 6px);',
+    '.pip{position:absolute;top:calc(var(--winpad) + var(--cell) * ' + (CENTRE + 0.5) + ' - 6px);',
     'width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;pointer-events:none}',
     '.pip.l{left:2px;border-left:8px solid var(--gold-lit)}',
     '.pip.r{right:2px;border-right:8px solid var(--gold-lit)}',
