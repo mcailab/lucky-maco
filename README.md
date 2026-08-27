@@ -24,6 +24,8 @@ All optional, set as `data-*` on the script tag.
 | `data-twins` | `0.10` | Odds of exactly 2 identical, any position. `data-pair` still works as an alias. |
 | `data-near-miss` | `0.60` | Share of twins with the odd one on reel 3, so reel 3 crawls. Presentation only — pays the same either way. |
 | `data-rows` | `3` | Visible rows per reel: 1, 3 or 5. Only the centre row pays. |
+| `data-stock` | `20` | Macoji sitting in the hopper. |
+| `data-changer` | `false` | Start in Game Changer mode with settings editable. |
 | `data-packing` | `1.2` | How tightly the heaps stack. `1` = faces touching, `1.3` = airier. Fewer fit as it rises, and the hopper's stock is the jackpot payout, so a looser machine pays out less. Range 0.8–1.5. |
 | `data-spin-speed` | `1` | Multiplies every reel duration. `1.5` = half again as long, `0.7` = snappier. Range 0.4–2.5. |
 | `data-mode` | `widget` | `widget` = floating button, `page` = always open |
@@ -60,8 +62,11 @@ changes how often you win. Verified over 500,000 pulls at both 28 and 280 symbol
 
 ## Hidden
 
-Triple-click the Master Concept mark to reveal buttons that force a jackpot or
-twins. Session-scoped. Or `LuckyMaco.pull('TRIPLE' | 'PAIR' | 'ALLDIFF')` from the console.
+**Game Changer.** Triple-click the Master Concept mark to unlock it: buttons that
+force a jackpot or twins, and every machine setting in the ⚙️ sheet becomes
+editable — including the win percentages. Triple-click again to return to Player
+Mode, where the sheet only reports. Session-scoped, so it can never linger into a
+demo. Or `LuckyMaco.pull('TRIPLE' | 'PAIR' | 'ALLDIFF')` from the console.
 
 ## Files
 

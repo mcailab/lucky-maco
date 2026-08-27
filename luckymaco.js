@@ -36,13 +36,15 @@
     nearMiss: 0.60,             // share of pairs landing XXO. Pays the same wherever
                                 // the odd one lands — this only decides how often
                                 // reel 3 crawls, i.e. how often you get suspense.
-    test:     false,            // force the outcome panel open. Normally you unlock it
-                                // by tapping the Master Concept mark 5x — see below.
+    changer:  false,            // Game Changer: forced outcomes and editable machine
+                                // settings. Unlocked by triple-clicking the mark.
     haptics:  true,             // vibration on pull, wins and shake (Android; iOS Safari
                                 // support is unreliable, so it self-detects)
     sound:    true,             // lever clunk, reel stops, win chimes (WebAudio, no files)
     spinSpeed: 1,              // multiplies every reel duration. 1.5 = half again as
                                 // long, 0.7 = snappier. Range 0.4-2.5.
+    stock:    20,               // how many Macoji sit in the hopper. It is a window
+                                // onto a wider heap, so some are clipped by the frame.
     packing:  1.2,              // how tightly heaps stack. 1 = faces touching,
                                 // 1.3 = airier. Fewer fit as it rises. 0.8-1.5.
     rows:     3,                // visible rows per reel: 1, 3 or 5. Only the centre row pays.
@@ -59,15 +61,17 @@
   for (var _k in CFG) DEFAULTS[_k] = CFG[_k];
 
   var NUM = { triple: 1, twins: 1, nearMiss: 1 };
-  var BOOL = { shake: 1, sound: 1, test: 1, haptics: 1 };
-  var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5] };
+  var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
+  var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
+                stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6] };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
 
   function configure(o) {
     if (!o) return snapshot();
-    if (o.pair != null && o.twins == null) o.twins = o.pair;   // pre-Twins alias
+    if (o.pair != null && o.twins == null) o.twins = o.pair;      // pre-Twins alias
+    if (o.test != null && o.changer == null) o.changer = o.test;  // pre-Game-Changer alias
     for (var k in CFG) {
       if (!Object.prototype.hasOwnProperty.call(o, k) || o[k] == null) continue;
       var v = o[k];
@@ -314,6 +318,29 @@
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:16px;',
     'pointer-events:none;box-shadow:0 0 32px var(--glow2);',
     'animation:marquee 3.6s ease-in-out infinite}',
+    /* chasing bulbs — a ring of lights running around the marquee */
+    '.bulb{position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;',
+    'background:var(--gold-lit);opacity:.22;animation:chase 2.4s linear infinite}',
+    '@keyframes chase{0%,72%{opacity:.2;box-shadow:none}',
+    '10%{opacity:1;box-shadow:0 0 7px 2px var(--gold-lit)}',
+    '30%{opacity:.45;box-shadow:0 0 3px var(--gold-lit)}}',
+    '.marquee.fast .bulb{animation-duration:.85s}',
+    '.marquee.allon .bulb{animation:flash .28s steps(1) infinite}',
+    '.marquee.allon .bulb:nth-child(even){animation-delay:.14s}',
+    '@keyframes flash{0%,49%{opacity:1;box-shadow:0 0 8px 2px var(--gold-lit)}',
+    '50%,100%{opacity:.15;box-shadow:none}}',
+    /* a highlight sweeping across the wordmark */
+    '.mq-name{background-image:linear-gradient(100deg,',
+    'var(--gold) 40%,#fff8e2 48%,var(--gold) 56%);',
+    '-webkit-background-clip:text;background-clip:text;background-size:280% 100%;',
+    '-webkit-text-fill-color:transparent;animation:sheen 5s ease-in-out infinite}',
+    '@keyframes sheen{0%,62%{background-position:120% 0}',
+    '86%,100%{background-position:-40% 0}}',
+    /* the reel window powers up while the reels run */
+    '.window{transition:border-color .35s,box-shadow .35s}',
+    '.window.live{border-color:var(--gold-lit);',
+    'box-shadow:var(--win-sh),0 0 22px -2px var(--glow2)}',
+    '.window.live .band{animation:bandlit .9s ease-in-out infinite}',
     '@keyframes marquee{0%,100%{opacity:.28}50%{opacity:1}}',
     '.marquee img{width:30px;height:30px;flex:none;display:block;',
     'filter:drop-shadow(0 2px 7px rgba(233,152,43,.55))}',
@@ -426,7 +453,7 @@
     'background:var(--reel);color:var(--txt);font:700 11px/1 inherit;cursor:pointer;',
     'letter-spacing:.06em;text-transform:uppercase}',
     '.sheet button.primary{background:var(--gold-lit);color:#fff;border-color:transparent}',
-    '.sheet td.stepcell{white-space:nowrap}',
+    '.sheet .stepcell{white-space:nowrap;display:inline-flex;align-items:center}',
     '.sheet button.step{flex:none;width:30px;padding:5px 0;margin:0 7px;border-radius:8px;',
     'font-size:15px;line-height:1;vertical-align:middle}',
     '.sheet .force{display:inline-block;min-width:24px;text-align:center;vertical-align:middle}',
@@ -479,7 +506,8 @@
     '.glare.on{animation:glare 1.1s ease-out}',
     '.spark{position:absolute;width:9px;height:9px;border-radius:2px;pointer-events:none}',
     '@media (max-width:430px){.lever{right:-10px;transform:scale(.82);transform-origin:50% 30%}}',
-    '@media (prefers-reduced-motion:reduce){.fab img,.marquee{animation:none}}',
+    '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
+    '.mq-name{-webkit-text-fill-color:var(--gold)}}',
     /* page mode: the cabinet IS the page — no button, no scrim, nothing to close */
     PAGE ? '.fab,.close{display:none}' +
            '.scrim{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;' +
@@ -554,14 +582,12 @@
   function remembered() { try { return localStorage.getItem(STORE); } catch (e) { return null; } }
   function remember(v) { try { localStorage.setItem(STORE, v); } catch (e) {} }
 
-  try {
-    var savedPack = parseFloat(localStorage.getItem('luckymaco:packing'));
-    if (savedPack >= 0.8 && savedPack <= 1.5) CFG.packing = savedPack;
-  } catch (e) {}
-  try {
-    var savedForce = parseFloat(localStorage.getItem('luckymaco:force'));
-    if (savedForce >= 8 && savedForce <= 60) CFG.shakeForce = savedForce;
-  } catch (e) {}
+  ['packing', 'stock', 'shakeForce'].forEach(function (k) {
+    try {
+      var v = parseFloat(localStorage.getItem('luckymaco:' + k));
+      if (v >= RANGE[k][0] && v <= RANGE[k][1]) CFG[k] = v;
+    } catch (e) {}
+  });
 
   var saved = remembered();
   if (!THEME_PINNED && (saved === 'light' || saved === 'dark')) CFG.theme = saved;
@@ -777,10 +803,10 @@
      the sides and above the top and get clipped — which reads as "there is more
      back there". It holds the 28 minus the 9 showing on the reels, and all 19
      fall on a jackpot — the supply and the payout are the same Macoji. */
-  var STOCK = 19, HS = 34, OVER = 30;            // 19 = the 28 minus the 9 on the reels
+  var HS = 34, OVER = 30;                        // OVER = overhang past each edge
   function fillHopper() {
     var W = hopper.clientWidth || 320, H = hopper.clientHeight || 72;
-    var spots = pileLayout(STOCK, FACE_D * HS * CFG.packing, W + OVER * 2, H, 3, 3, 12,
+    var spots = pileLayout(CFG.stock, FACE_D * HS * CFG.packing, W + OVER * 2, H, 3, 3, 12,
                            FACE_Y * HS - 70);        // may stack up out of frame
     var faces = distinct(spots.length), h = '';
     for (var i = 0; i < spots.length; i++) {
@@ -926,6 +952,8 @@
     if (spinning) return;
     spinning = true;
     lever.classList.add('busy');
+    marquee.classList.add('fast');               // lights race while reels run
+    $('.window').classList.add('live');
     /* A test-mode banner may have a pending restore queued. Left alone it fires
        mid-spin and resurrects the idle text over the top of the reels. */
     if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
@@ -1001,6 +1029,8 @@
     lastResult = res;
     stopSpinSound();
     lever.classList.remove('busy');
+    marquee.classList.remove('fast');
+    $('.window').classList.remove('live');
     var r = res.reels;
     if (res.pattern === 'TRIPLE') {
       msg.className = 'msg jackpot';
@@ -1052,6 +1082,8 @@
   /* Jackpot escapes the reel window — the whole cabinet celebrates and it rains
      Macoji. That shower is the jackpot's signature and appears nowhere else. */
   function celebrate() {
+    marquee.classList.add('allon');              // every bulb, alternating
+    setTimeout(function () { marquee.classList.remove('allon'); }, 2200);
     restart(cab, 'jackpot');
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
@@ -1068,6 +1100,8 @@
   /* A pair stays inside the window: payline lights, the two matching Macoji
      wiggle. No shake, no strobe, nothing falls. */
   function celebrateSmall(res) {
+    marquee.classList.add('allon');
+    setTimeout(function () { marquee.classList.remove('allon'); }, 700);
     var band = $('.band');
     restart(band, 'lit');
     pulse(matchedIndexes(res.reels), 'pairwin');
@@ -1208,7 +1242,7 @@
   /* ── settings sheet ───────────────────────────────────────────────────── */
   var EMBED_SRC = 'https://lucky.mcai.dev/luckymaco.js';
   var sheet = $('.sheet'), sheetTick = null;
-  var SHOWN = ['triple', 'twins', 'rows', 'packing', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
+  var SHOWN = ['triple', 'twins', 'rows', 'stock', 'packing', 'spinSpeed', 'position', 'shake', 'shakeForce', 'haptics', 'set', 'mode'];
 
   function embedCode() {
     var lines = ['<script src="' + EMBED_SRC + '"'];
@@ -1227,25 +1261,31 @@
 
   function buildSheet() {
     var pct = function (v) { return (v * 100).toFixed(0) + '%'; };
+    /* In Player Mode the sheet reports; in Operator Mode it edits. */
+    var op = !testPanel.hidden;
+    var step = function (k, d, val) {
+      return op ? '<span class="stepcell">' +
+        '<button class="step" data-k="' + k + '" data-d="' + (-d) + '">&minus;</button>' +
+        '<b>' + val + '</b>' +
+        '<button class="step" data-k="' + k + '" data-d="' + d + '">+</button></span>'
+        : val;
+    };
     sheet.innerHTML =
       '<button class="shut" aria-label="Close settings">&#10005;</button>' +
-      '<h3>Odds</h3><table>' +
-        '<tr><td>Jackpot &mdash; 3 identical</td><td>' + pct(CFG.triple) + '</td></tr>' +
-        '<tr><td>Twins &mdash; 2 identical</td><td>' + pct(CFG.twins) + '</td></tr>' +
+      '<h3>' + (op ? 'Odds &mdash; Game Changer' : 'Odds') + '</h3><table>' +
+        '<tr><td>Jackpot &mdash; 3 identical</td><td>' +
+          step('triple', 0.01, pct(CFG.triple)) + '</td></tr>' +
+        '<tr><td>Twins &mdash; 2 identical</td><td>' +
+          step('twins', 0.01, pct(CFG.twins)) + '</td></tr>' +
         '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) + '</td></tr>' +
-        '<tr><td>Suspense &mdash; reel 3 crawls</td><td>' +
-          pct(CFG.triple + CFG.twins * CFG.nearMiss) + ' of pulls</td></tr>' +
+
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
         '<tr><td>Rows</td><td>' + CFG.rows + '</td></tr>' +
-        '<tr><td>Heap packing<br><span style="opacity:.7;font-size:11px">' +
-          'higher = airier, fewer fit</span></td><td class="stepcell">' +
-          '<button class="step" data-k="packing" data-d="-0.1">&minus;</button>' +
-          '<b class="pack">' + CFG.packing.toFixed(1) + '</b>' +
-          '<button class="step" data-k="packing" data-d="0.1">+</button><br>' +
-          '<span style="font-weight:400;opacity:.7;font-size:11px">' +
-          hstock.children.length + ' in the hopper</span></td></tr>' +
+        '<tr><td>Macoji in hopper</td><td>' + step('stock', 1, CFG.stock) + '</td></tr>' +
+        '<tr><td>Heap packing</td><td>' +
+          step('packing', 0.1, CFG.packing.toFixed(1)) + '</td></tr>' +
         '<tr><td>Reel stops at</td><td>' +
           [1.6, 2.65, 3.7].map(function (v) { return (v * CFG.spinSpeed).toFixed(1); }).join('s / ') +
           's</td></tr>' +
@@ -1258,10 +1298,8 @@
           : buzzWorked === false ? 'Blocked by browser'
           : buzzWorked === true ? 'Working' : 'Ready') + '</td></tr>' +
         '<tr><td>Shake needed<br><span style="opacity:.7;font-size:11px">' +
-          'higher = less sensitive</span></td><td class="stepcell">' +
-          '<button class="step" data-d="-3">&minus;</button>' +
-          '<b class="force">' + CFG.shakeForce + '</b>' +
-          '<button class="step" data-d="3">+</button><br>' +
+          'higher = less sensitive</span></td><td>' +
+          step('shakeForce', 3, CFG.shakeForce) + '<br>' +
           '<span style="font-weight:400;opacity:.7;font-size:11px">peak ' +
           '<span class="peak">' + (motionSeen ? peakMag.toFixed(1) : '\u2013') +
           '</span></span></td></tr>' +
@@ -1294,19 +1332,19 @@
     sheet.querySelectorAll('.step').forEach(function (b) {
       b.addEventListener('click', function (e) {
         e.stopPropagation();
-        var d = parseFloat(b.dataset.d);
-        if (b.dataset.k === 'packing') {
-          CFG.packing = Math.max(0.8, Math.min(1.5, Math.round((CFG.packing + d) * 10) / 10));
-          try { localStorage.setItem('luckymaco:packing', String(CFG.packing)); } catch (err) {}
+        var k = b.dataset.k || 'shakeForce', d = parseFloat(b.dataset.d);
+        var lo = RANGE[k][0], hi = RANGE[k][1];
+        var v = Math.max(lo, Math.min(hi, Math.round((CFG[k] + d) * 10) / 10));
+        CFG[k] = v;
+        try { localStorage.setItem('luckymaco:' + k, String(v)); } catch (err) {}
+        if (k === 'packing' || k === 'stock') {
           fillHopper(); pourHopper();            // re-heap so you can see it at once
-          buildSheet();
-          return;
         }
-        var v = Math.max(8, Math.min(60, CFG.shakeForce + d));
-        CFG.shakeForce = v;
-        try { localStorage.setItem('luckymaco:force', String(v)); } catch (err) {}
-        sheet.querySelector('.force').textContent = v;
-        peakMag = 0;
+        if (k === 'triple' || k === 'twins') {   // keep the split coherent
+          if (CFG.triple + CFG.twins > 0.95) CFG[k] = v - d;
+        }
+        if (k === 'shakeForce') peakMag = 0;
+        buildSheet();
       });
     });
     var sb = sheet.querySelector('.shakebtn');
@@ -1385,26 +1423,26 @@
   });
 
   /* ── hidden outcome panel ─────────────────────────────────────────────────
-     Jackpot is 5%, so waiting for one to test the dump is painful. Triple-click
-     (or triple-tap) the Master Concept mark to reveal buttons that force each
-     outcome; triple-tap again to hide them. 900ms window, so it takes a real
-     triple-click rhythm rather than three idle taps. Session-scoped, so it can
-     never linger into a demo. */
+     Game Changer, the way a real cabinet works: whoever opens it can reach the
+     payout settings, players cannot. Triple-click the Master Concept mark to enter, triple-click to
+     leave. 900ms window, so it takes a genuine triple-click rhythm rather than
+     three idle taps. Session-scoped, so it can never linger into a demo. */
   var TAPS = 3, TAP_WINDOW = 900, toggledAt = 0;
   var testPanel = $('.test'), taps = 0, tapAt = 0;
   var marquee, mark;
 
   var flashTimer = null;
-  function flash(html) {
+  function flash(html, ms) {
     if (spinning) return;                       // never stomp on a result
     if (flashTimer) clearTimeout(flashTimer);
     var wasClass = msg.className, wasHTML = msg.innerHTML;
     msg.className = 'msg win';
     msg.innerHTML = html;
+    fitLine();
     flashTimer = setTimeout(function () {
       flashTimer = null;
       msg.className = wasClass; msg.innerHTML = wasHTML;
-    }, 1500);
+    }, ms || 1500);
   }
 
   function setTest(on) {
@@ -1412,14 +1450,31 @@
     marquee.classList.toggle('armed', on);      // dashed ring = armed, at a glance
     try { on ? sessionStorage.setItem('luckymaco:test', '1')
              : sessionStorage.removeItem('luckymaco:test'); } catch (e) {}
-    flash(on ? '<b>&#9881;&#65039; Test mode ON</b><small>forcing buttons below</small>'
-             : '<b>Test mode off</b><small>back to normal odds</small>');
+    flash(on ? '<b><img src="' + FACE + '" alt="">You&rsquo;re the Game Changer</b>' +
+               '<small>machine settings unlocked &mdash; change the odds below</small>'
+             : '<b>Player Mode</b><small>machine settings locked again</small>', on ? 2400 : 1500);
     if (on) {
       tone(880, 0.09, 'square', 0.10);
       setTimeout(function () { tone(1320, 0.12, 'square', 0.10); }, 90);
     } else { tone(440, 0.10, 'square', 0.08); }
   }
   marquee = $('.marquee'); mark = $('.marquee img');
+
+  /* Bulbs around the marquee's perimeter, delayed in sequence so the light runs
+     around it. Opacity and box-shadow only, so it stays on the compositor. */
+  (function bulbs() {
+    var NX = 9, NY = 2, spots = [], i, t, frag = '';
+    for (i = 0; i < NX; i++) spots.push([(i + 0.5) / NX * 100, 0]);
+    for (i = 0; i < NY; i++) spots.push([100, (i + 0.5) / NY * 100]);
+    for (i = NX - 1; i >= 0; i--) spots.push([(i + 0.5) / NX * 100, 100]);
+    for (i = NY - 1; i >= 0; i--) spots.push([0, (i + 0.5) / NY * 100]);
+    for (i = 0; i < spots.length; i++) {
+      t = (i / spots.length * 2.4).toFixed(2);      // one lap per cycle
+      frag += '<span class="bulb" style="left:calc(' + spots[i][0] + '% - 2.5px);top:calc(' +
+        spots[i][1] + '% - 2.5px);animation-delay:-' + t + 's"></span>';
+    }
+    marquee.insertAdjacentHTML('beforeend', frag);
+  })();
   mark.addEventListener('click', function (e) {
     e.stopPropagation();
     mark.classList.remove('tapped');            // restart the pop on every tap
@@ -1444,7 +1499,7 @@
 
   var wasArmed = false;
   try { wasArmed = sessionStorage.getItem('luckymaco:test') === '1'; } catch (e) {}
-  if (CFG.test || wasArmed) setTest(true);
+  if (CFG.changer || wasArmed) setTest(true);
 
   /* Tap anywhere on the cabinet to sweep the pile away early — it otherwise sits
      until the next pull, which is deliberate but sometimes in the way. */
