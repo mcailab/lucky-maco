@@ -266,6 +266,10 @@
        so the three cells actually fill the window instead of floating in it. */
     '--cell:min(var(--maxcell), calc((var(--cabw) - 64px) / 3));',
     '--hop:74px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px;',
+    /* The hopper is a separate box, not part of the title glass or the reels,
+       so it gets more air than the standard gap on both sides. At --gap it read
+       as stuck to the marquee above it. */
+    '--hopgap:calc(var(--gap) + 9px);',
 '--belly:54px}',
     '@media (min-width:620px) and (min-height:880px){',
     ':host{--cabw:440px;--maxcell:104px;--hop:80px;--mqpad:17px;--msg:58px;',
@@ -341,6 +345,13 @@
     'stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
     '.ctl[hidden]{display:none}',
     '.ctl.off{opacity:.5}',
+    /* While Game Changer is on, the cog breathes — the one control it unlocks,
+       marking itself so the state is visible without a toast standing there. */
+    '@keyframes cogbreath{0%,100%{border-color:var(--cab-br);color:var(--txt);',
+    'box-shadow:0 4px 14px rgba(0,0,0,.18)}',
+    '50%{border-color:var(--gold-lit);color:var(--gold-lit);',
+    'box-shadow:0 4px 14px rgba(0,0,0,.18),0 0 14px -1px var(--glow2)}}',
+    '.ctl.cog.unlocked{animation:cogbreath 2.4s ease-in-out infinite}',
     /* Sits in the top bar beside the mode buttons — never over the machine. */
     '.test{display:flex;gap:5px;flex-wrap:nowrap;align-items:center;min-width:0}',
     '.test button{padding:5px 7px;border:1px dashed var(--gold-lit);border-radius:7px;',
@@ -357,8 +368,32 @@
     '.marquee img{cursor:pointer;-webkit-tap-highlight-color:transparent}',
 
     /* marquee — the lit topper above the reels */
+    /* A lamp behind the title box. Real cabinets light the top glass from
+       inside, so the marquee is the natural place for the machine to answer
+       you: brighter and longer the bigger the moment. It sits under the
+       wordmark (z-index 0, like .mglow) and is invisible until something
+       lights it. */
+    '.mqlamp{position:absolute;inset:0;border-radius:18px;pointer-events:none;',
+    'z-index:0;opacity:0;background:',
+    'radial-gradient(120% 165% at 50% 118%,var(--gold-lit),transparent 62%),',
+    'linear-gradient(180deg,rgba(255,201,107,.30),rgba(233,152,43,.52))}',
+    '@keyframes mqlamp1{0%{opacity:0}20%{opacity:.8}100%{opacity:0}}',
+    '@keyframes mqlamp2{0%,100%{opacity:0}10%{opacity:.72}26%{opacity:.1}',
+    '42%{opacity:.72}}',
+    '@keyframes mqlampJ{0%,100%{opacity:.18}50%{opacity:1}}',
+    '@keyframes mqlampG{0%{opacity:0}8%{opacity:1}20%{opacity:.62}30%{opacity:1}',
+    '86%{opacity:.9}100%{opacity:0}}',
+    '.marquee.lit1 .mqlamp{animation:mqlamp1 .9s ease-out}',       /* tapping the mark */
+    '.marquee.lit2 .mqlamp{animation:mqlamp2 1.15s ease-in-out}',  /* twins */
+    '.marquee.litJ .mqlamp{animation:mqlampJ .3s ease-in-out 7}',  /* jackpot */
+    '.marquee.litG .mqlamp{animation:mqlampG 6s ease-in-out}',     /* LUCKY MACO! */
+    /* the wordmark and the mark ride the same light */
+    '@keyframes mqheat{0%,100%{filter:none}50%{filter:brightness(1.35) ',
+    'drop-shadow(0 0 12px var(--gold-lit))}}',
+    '.marquee.litJ .mq,.marquee.litJ img{animation:mqheat .3s ease-in-out 7}',
+    '.marquee.litG .mq,.marquee.litG img{animation:mqheat 1.5s ease-in-out 4}',
     '.marquee{display:flex;align-items:center;justify-content:center;gap:13px;',
-    'margin:2px 0 var(--gap);padding:var(--mqpad) 22px;border-radius:18px;',
+    'margin:2px 0 var(--hopgap);padding:var(--mqpad) 22px;border-radius:18px;',
     'background:var(--mq);border:1px solid var(--gold-soft);',
     'box-shadow:var(--mq-sh);position:relative}',
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:18px;',
@@ -422,7 +457,7 @@
        auto creates no stacking context, so they competed with the lever at
        cabinet level and painted over it. */
     '.hopper{position:relative;isolation:isolate;height:var(--hop);',
-    'margin:0 0 var(--gap);',
+    'margin:0 0 var(--hopgap);',
     'border-radius:12px;',
     'background:var(--reel);border:1px solid var(--cab-br)}',
     '.hstock{position:absolute;inset:0;overflow:hidden;border-radius:12px;',
@@ -683,6 +718,9 @@
     '@media (max-height:605px){.belly{display:none}}',
     '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
+    '.ctl.cog.unlocked{animation:none;border-color:var(--gold-lit);color:var(--gold-lit)}',
+    '.mqlamp,.marquee.litJ .mq,.marquee.litG .mq,.marquee.litJ img,',
+    '.marquee.litG img{animation:none}',
     '.mglow::before{animation:none}',
     '.mq-name{-webkit-text-fill-color:var(--gold)}}',
     /* page mode: the cabinet IS the page — no button, no scrim, nothing to close */
@@ -721,6 +759,7 @@
       '<div class="cab">' +
         '<button class="close" aria-label="Close">&#10005;</button>' +
         '<div class="marquee">' +
+          '<div class="mqlamp"></div>' +
           '<div class="mglow"></div>' +
           '<img src="' + LOGO + '" alt="Master Concept">' +
           '<div class="mq"><span class="mq-name">Lucky Maco</span>' +
@@ -1208,8 +1247,24 @@
     return Promise.reject(new Error('no-share'));
   }
 
+  /* toBlob is async, and on Android Chrome the await costs the click its user
+     activation — navigator.share then throws NotAllowedError and the button
+     looks dead. toDataURL is synchronous, so a card built this way is still
+     inside the activation window. Used only when the pre-rendered one is
+     missing, which is the case a broken card render used to leave behind. */
+  function cardNow() {
+    var url = shareCanvas().toDataURL('image/png');
+    var bin = atob(url.slice(url.indexOf(',') + 1));
+    var buf = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    var blob = new Blob([buf], { type: 'image/png' });
+    try { return new File([blob], 'lucky-maco.png', { type: 'image/png' }); }
+    catch (e) { return blob; }
+  }
+
   function shareResult() {
     var file = pendingCard;
+    if (!file) { try { file = cardNow(); } catch (e) { file = null; } }
     var after = function (err) {
       if (!err) return;
       if (err && err.name === 'AbortError') return;      // they just backed out
@@ -1223,17 +1278,11 @@
       if (p && p['catch']) p['catch'](after);
       return;
     }
-    /* No card ready — build one, then share. Activation may already be gone, so
-       this path is expected to fall through to saving. */
-    shareCanvas().toBlob(function (blob) {
-      if (!blob) { toast('<b>Could not build the card</b>', 2200); return; }
-      var f;
-      try { f = new File([blob], 'lucky-maco.png', { type: 'image/png' }); } catch (e) { f = blob; }
-      file = f;
-      var p;
-      try { p = handOff(f); } catch (e) { after(e); return; }
-      if (p && p['catch']) p['catch'](after);
-    }, 'image/png');
+    /* No card at all — the render itself failed. Share the words rather than
+       leaving the button doing nothing. */
+    var q;
+    try { q = handOff(null); } catch (e) { after(e); return; }
+    if (q && q['catch']) q['catch'](after);
   }
 
   function saveCard(blob) {
@@ -1475,23 +1524,6 @@
   }
   /* Called at the start of a pull, not at the end of a dump: after a jackpot the
      machine sits empty with the pile on the floor until you play again. */
-  /* Reload the way the machine loaded in the first place: the hopper tips in and
-     the reel cells drop from above. Fading them back left a blank window for a
-     beat, which read as the machine glitching rather than restocking. */
-  function reloadReels() {
-    var CELL = cellPx(), first = lastResult ? TRAIL : 0;
-    for (var i = 0; i < strips.length; i++) {
-      for (var k = 0; k < ROWS; k++) {
-        var cel = strips[i].children[first + k];
-        if (!cel) continue;
-        cel.animate([
-          { transform: 'translateY(-' + (CELL * 3.4) + 'px)', opacity: 0 },
-          { transform: 'translateY(0)', opacity: 1 }
-        ], { duration: 460, delay: 120 + i * 70 + (ROWS - 1 - k) * 90,
-             easing: 'cubic-bezier(.34,1.45,.6,1)', fill: 'backwards' });
-      }
-    }
-  }
 
   function restock(done) {
     var refill = function () {
@@ -1502,7 +1534,7 @@
         fillHopper();
         pourHopper();
       }
-      if (wasDark) reloadReels();
+      if (wasDark) dropCells();
       if (done) done(wasDark);
     };
     if (dumpBox.children.length) drainPile(refill);   // let it fall out first
@@ -1564,6 +1596,9 @@
      otherwise the rarer result would be worth no more than the common one.
 
        0.10 x 2  +  0.05 x 3  =  0.35 lamps per pull  ->  eight lit every ~23 pulls */
+  var WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+               'eight', 'nine', 'ten'];
+  function word(n) { return WORDS[n] || String(n); }
   var LAMPS = 8, lamps = 0;
   var belly = $('.belly'), lampRow = belly;
 
@@ -1585,11 +1620,13 @@
     belly.classList.toggle('full', lamps >= LAMPS);
     var pr = $('.progress');
     if (pr) {
+      /* No running count — the lit faces below say it at a glance, and a number
+         beside them only repeated it. What is left is the stake, stated once,
+         and a tighter line on the pull that leaves a single lamp dark. */
       var left = LAMPS - lamps;
       pr.classList.toggle('close', left === 1);
-      pr.innerHTML = left <= 0 ? 'Maco is free'
-        : left === 1 ? 'One more &mdash; Maco is nearly free'
-        : lamps + ' of ' + LAMPS + ' &mdash; light them all to free Maco';
+      pr.innerHTML = left === 1 ? 'One lamp from free'
+                                : 'Light up all ' + word(LAMPS) + ' &mdash; Maco goes free';
     }
   }
   function saveLamps() {
@@ -1646,6 +1683,12 @@
        running, so staged calls would cut each other off. */
     buzz([55, 75, 55, 75, 55, 75, 55, 75, 55, 280,
           80, 70, 120, 70, 170, 90, 720]);
+
+    /* The top glass burns for the whole release and only fades once he has
+       landed — the one time in the game it stays lit rather than flashes. */
+    mqLamp('litG', 6000);
+    marquee.classList.add('allon');
+    setTimeout(function () { marquee.classList.remove('allon'); }, 6000);
 
     var lampsEls = belly.querySelectorAll('.lamp');
     var i, t = 0;
@@ -1794,18 +1837,16 @@
      bottom up. Runs once, on open. Pure Web Animations on the cells that are
      already there — no canvas, no physics, no cost after it finishes. */
   var filled = false;
-  function fillIn() {
-    filled = true;
-    var CELL = cellPx();
-    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-    pourHopper();                                // the supply arrives first
+  /* The nine visible cells drop in from above the window, left to right, bottom
+     row first. This is the machine's load-in, and a jackpot restock uses exactly
+     the same one — the window should refill the way it first filled, not fade
+     back on. */
+  function dropCells() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    var CELL = cellPx(), first = lastResult ? TRAIL : 0;
     strips.forEach(function (strip, col) {
-      strip.style.transition = 'none';
-      strip.innerHTML = cells(STRIP);
-      strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
-      if (reduce) return;
       for (var r = 0; r < ROWS; r++) {
-        var el = strip.children[TRAIL + r];
+        var el = strip.children[first + r];
         if (!el) continue;
         el.animate([
           { transform: 'translateY(-' + (CELL * 4.2) + 'px) rotate(-20deg)', opacity: 0 },
@@ -1818,6 +1859,18 @@
         });
       }
     });
+  }
+
+  function fillIn() {
+    filled = true;
+    var CELL = cellPx();
+    pourHopper();                                // the supply arrives first
+    strips.forEach(function (strip) {
+      strip.style.transition = 'none';
+      strip.innerHTML = cells(STRIP);
+      strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
+    });
+    dropCells();
   }
 
   /* ── spin ─────────────────────────────────────────────────────────────── */
@@ -1852,7 +1905,7 @@
       strip.style.transform = 'translateY(0)';
       strip.innerHTML = cells(STRIP, res.reels[i], AT);
       void strip.offsetHeight;                          // force reflow
-      var lead = reloading ? 620 : 0;           // let the machine restock first
+      var lead = reloading ? 980 : 0;           // let the machine restock first
       setTimeout(function () {
         strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.5,.2,.25,1)';
         strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
@@ -1949,6 +2002,18 @@
     if (drop) el.classList.remove(drop);
     el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
   }
+  /* The top glass has one lamp and one owner. Left to themselves the classes
+     pile up — a tap during a jackpot would run two animations on the same
+     opacity — so every response clears the others first and hands the class
+     back when it is done. */
+  var LAMPCLS = ['lit1', 'lit2', 'litJ', 'litG'], lampTimer = 0;
+  function mqLamp(cls, ms) {
+    clearTimeout(lampTimer);
+    for (var i = 0; i < LAMPCLS.length; i++) marquee.classList.remove(LAMPCLS[i]);
+    void marquee.offsetWidth;
+    marquee.classList.add(cls);
+    lampTimer = setTimeout(function () { marquee.classList.remove(cls); }, ms);
+  }
   function pulse(indexes, cls) {                  // mark the cells that won
     indexes.forEach(function (i) {
       var c = strips[i].children[AT];
@@ -1970,6 +2035,7 @@
   function celebrateNow() {
     marquee.classList.add('allon');              // every bulb, alternating
     setTimeout(function () { marquee.classList.remove('allon'); }, 2200);
+    mqLamp('litJ', 2100);                        // top glass strobes
     restart(cab, 'jackpot');
     restart(marquee, 'flash');
     restart($('.glare'), 'on');
@@ -1988,6 +2054,7 @@
   function celebrateSmallNow(res) {
     marquee.classList.add('allon');
     setTimeout(function () { marquee.classList.remove('allon'); }, 700);
+    mqLamp('lit2', 1150);                        // two soft pulses overhead
     var band = $('.band');
     restart(band, 'lit');
     pulse(matchedIndexes(res.reels), 'pairwin');
@@ -2345,10 +2412,11 @@
     marquee.classList.toggle('armed', on);      // dashed ring = armed, at a glance
     try { on ? sessionStorage.setItem('luckymaco:test', '1')
              : sessionStorage.removeItem('luckymaco:test'); } catch (e) {}
-    toast(on
-      ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>' +
-        '<small>Customise your machine in Settings</small>'
-      : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2600 : 1600);
+    /* One line. The breathing cog says where to go next, so the second line was
+       telling you something the interface already shows. */
+    $('.cog').classList.toggle('unlocked', on);
+    toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
+             : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
     if (on) {
       tone(880, 0.09, 'square', 0.10);
       setTimeout(function () { tone(1320, 0.12, 'square', 0.10); }, 90);
@@ -2376,6 +2444,7 @@
     mark.classList.remove('tapped');            // restart the pop on every tap
     void mark.offsetWidth;
     mark.classList.add('tapped');
+    mqLamp('lit1', 900);                        // the top glass answers the touch
     var now = Date.now();
     /* Cooldown after a toggle: without it, the tap that follows a successful
        triple starts counting immediately, so a couple of extra taps flip it
@@ -2400,9 +2469,15 @@
   /* Tap anywhere on the cabinet to sweep the pile away early — it otherwise sits
      until the next pull, which is deliberate but sometimes in the way. */
   cab.addEventListener('click', function (e) {
-    if (!dumpBox.children.length) return;
     if (e.target.closest && e.target.closest('button, .lever, .sheet')) return;
-    clearDrops();
+    var spent = dumpBox.children.length ||
+                $('.window').classList.contains('emptied') || !hstock.children.length;
+    if (!spent || spinning) return;
+    /* Not just a sweep: a tap on a spent machine reloads it there and then —
+       the pile falls out, the hopper tips back in, the window drops its cells
+       from the top. Clearing the floor and leaving the reels bare was the part
+       that felt broken. */
+    restock();
   });
 
   $('.share').addEventListener('click', function (e) {
