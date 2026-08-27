@@ -639,21 +639,23 @@
     'border:1px solid var(--cab-br);transition:border-color .4s,background .4s}',
     '.belly.full{border-color:var(--gold-lit);',
     'background:linear-gradient(180deg,rgba(255,201,107,.24),rgba(255,158,27,.08))}',
-    /* Unlit lamps are desaturated and dimmed, not made transparent — at low
-       opacity they nearly vanished against both themes. Grey still reads as a
-       Maco face, just an unlit one. */
-    '.lamp{width:calc(var(--belly) * .64);height:calc(var(--belly) * .64);',
-    'filter:grayscale(1) brightness(.62) contrast(.85);opacity:.85;',
-    'transition:filter .5s,opacity .5s,transform .4s}',
-    '.lamp.lit{filter:none;opacity:1;',
+    /* Unlit lamps are a colour conversion, never transparency: fully opaque,
+       just drained of colour. Fading them made them vanish against both themes;
+       greyscale keeps the whole face readable, it is simply switched off. */
+    '.lamp{width:calc(var(--belly) * .64);height:calc(var(--belly) * .64);opacity:1;',
+    'filter:grayscale(1) brightness(.78) contrast(.9);',
+    'transition:filter .5s,transform .4s}',
+    '.lamp.lit{filter:none;',
     'animation:lampon .55s cubic-bezier(.34,1.7,.64,1)}',
     '@keyframes lampon{0%{transform:scale(.35);opacity:0}',
     '60%{filter:brightness(1.6) drop-shadow(0 0 12px var(--gold-lit))}',
     '100%{transform:none;opacity:1}}',
     /* the last dark lamp breathes when you are one win away */
+    /* The one-away tell brightens rather than fading, for the same reason. */
     '.lamp.next{animation:nextup 1.5s ease-in-out infinite}',
-    '@keyframes nextup{0%,100%{opacity:.6;transform:scale(1)}',
-    '50%{opacity:1;transform:scale(1.09)}}',
+    '@keyframes nextup{0%,100%{filter:grayscale(1) brightness(.78) contrast(.9);',
+    'transform:scale(1)}',
+    '50%{filter:grayscale(.55) brightness(1.05);transform:scale(1.1)}}',
     /* Wildfire: Maco bursts out of the belly and grows up the page */
     '.bigmaco{position:fixed;pointer-events:none;z-index:2147483005;',
     'filter:drop-shadow(0 18px 40px rgba(240,130,30,.55))}',
@@ -1499,7 +1501,7 @@
     for (i = 0; i < lampsEls.length; i++) {
       lampsEls[i].animate([
         { transform: 'scale(1)',   filter: 'none' },
-        { transform: 'scale(1.5)', filter: 'brightness(2) drop-shadow(0 0 16px #FFC96B)' },
+        { transform: 'scale(1.5)', filter: 'brightness(1.9) drop-shadow(0 0 16px #FFC96B)' },
         { transform: 'scale(1)',   filter: 'none' }
       ], { duration: 420, delay: i * 130, easing: 'ease-out' });
     }
