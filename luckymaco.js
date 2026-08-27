@@ -518,11 +518,16 @@
 
     /* One cell holding both, so the row keeps its height whichever is showing and
        the machine never shifts when a result lands. */
-    '.actions{display:grid;place-items:center;margin-top:8px}',
+    /* The share button is the only thing in this row now, but the row still has
+       to hold its height — [hidden] took it out of the flow and the whole cabinet
+       jumped the moment a result landed. */
+    '.actions{display:grid;place-items:center;margin-top:8px;',
+    'min-height:calc(var(--sharepad) * 2 + 16px)}',
     '.actions > *{grid-area:1/1}',
+    /* The line sits under the belly, captioning the lamps it is about. */
     '.progress{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--mut);',
-    'text-align:center;transition:opacity .25s,color .3s;white-space:nowrap}',
-    '.progress.off{opacity:0}',
+    'margin-top:9px;text-align:center;transition:color .3s;',
+    'white-space:nowrap}',
     '.progress.close{color:var(--gold)}',
     '.share{display:flex;align-items:center;justify-content:center;gap:7px;',
     'padding:var(--sharepad) 16px;border-radius:999px;cursor:pointer;',
@@ -716,6 +721,7 @@
        .belly / .hopper display declarations, so declared earlier they simply lose
        the cascade and nothing hides. */
     '@media (max-height:605px){.belly{display:none}}',
+    '@media (max-height:605px){.progress{display:none}}',
     '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
     '.ctl.cog.unlocked{animation:none;border-color:var(--gold-lit);color:var(--gold-lit)}',
@@ -779,11 +785,11 @@
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
         '<div class="actions">' +
-        '<div class="progress"></div>' +
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
           '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button></div>' +
         '<div class="belly"></div>' +
+        '<div class="progress"></div>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
@@ -1626,7 +1632,7 @@
       var left = LAMPS - lamps;
       pr.classList.toggle('close', left === 1);
       pr.innerHTML = left === 1 ? 'One lamp from free'
-                                : 'Light all ' + word(LAMPS) + ' &mdash; set every Maco free';
+                                : 'Light up all Maco to set them free';
     }
   }
   function saveLamps() {
@@ -1785,7 +1791,6 @@
         '<small>You&rsquo;re super lucky today</small>';
       fitLine();
       $('.share').classList.remove('off');
-      $('.progress').classList.add('off');
       setTimeout(prepareCard, 90);
     }, lastAt + lastAtPause + 1150);
   }
@@ -1879,7 +1884,6 @@
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
-    $('.progress').classList.remove('off');
     if (lastMaco) { lastMaco.remove(); lastMaco = null; }
     marquee.classList.add('fast');               // lights race while reels run
     $('.window').classList.add('live');
@@ -1962,7 +1966,6 @@
     stopSpinSound();
     lever.classList.remove('busy');
     $('.share').classList.remove('off');         // there is now something to share
-    $('.progress').classList.add('off');
     setTimeout(prepareCard, 60);                 // ready before the button is pressed
     marquee.classList.remove('fast');
     $('.window').classList.remove('live');
