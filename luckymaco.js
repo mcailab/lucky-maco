@@ -163,12 +163,26 @@
   }
   /* force: 'TRIPLE' | 'PAIR' | 'ALLDIFF' — test mode and the public API use it to
      pick an outcome directly. Left undefined, the odds decide. */
+  /* Luck is a dial, not a switch. At 0 the machine runs its own odds exactly.
+     Filling it slides the chance of any win from 15% up to certain, and slides
+     the split inside a win from the natural 1-in-3 jackpot up to always. Both
+     ends are the honest ones: empty is the real game, full is a guaranteed
+     jackpot, and everything between is a machine that is merely kind. */
+  var luckLevel = 0;
+  function odds() {
+    var f = luckLevel, base = CFG.triple + CFG.twins;
+    var win = base + (1 - base) * f;
+    var jackShare = (base ? CFG.triple / base : 1 / 3);
+    jackShare = jackShare + (1 - jackShare) * f;
+    return { triple: win * jackShare, twins: win * (1 - jackShare) };
+  }
+
   function draw(force) {
     var pattern = force;
     if (!pattern) {
-      var r = Math.random();
-      pattern = r < CFG.triple ? 'TRIPLE'
-              : r < CFG.triple + CFG.twins ? 'PAIR' : 'ALLDIFF';
+      var o = odds(), r = Math.random();
+      pattern = r < o.triple ? 'TRIPLE'
+              : r < o.triple + o.twins ? 'PAIR' : 'ALLDIFF';
     }
     if (pattern === 'TRIPLE') {
       var a = pickDistinct(1)[0];
@@ -608,42 +622,45 @@
     '.sheet button:hover{filter:brightness(1.08)}',
 
     /* lever — right-hand side, pull down, springs back */
-    /* Luck Boost, mounted on the left flank the way the lever is mounted on the
-       right — a lit push button on a plate, the two reading as a matched pair of
-       cabinet controls rather than one control and one widget. Only exists in
-       Game Changer; players never see a machine with a rigged button on it. */
-    /* Held at the cabinet\u2019s vertical middle, which is where the reel window
-       and the lever\u2019s knob both sit, at every breakpoint — a fixed offset from
-       the top drifted up beside the hopper as the machine grew. */
-    '.luck{position:absolute;left:-20px;top:50%;transform:translateY(-50%);width:58px;',
-    'display:flex;flex-direction:column;align-items:center;gap:5px;z-index:3}',
-    '.luck[hidden]{display:none}',
-    '.dome{width:42px;height:42px;border-radius:50%;padding:0;cursor:pointer;',
-    'display:grid;place-items:center;-webkit-tap-highlight-color:transparent;',
-    'border:2px solid var(--mount);',
-    'background:radial-gradient(circle at 32% 26%,#5C6478,#2A3040 72%);',
-    'box-shadow:0 5px 13px rgba(0,0,0,.5),inset 0 -3px 7px rgba(0,0,0,.4);',
-    'transition:transform .12s,box-shadow .25s,background .25s}',
-    '.dome svg{width:19px;height:19px;display:block;fill:#AEB6C6;',
-    'transition:fill .25s,filter .25s}',
-    '.dome:active{transform:translateY(3px);box-shadow:0 1px 4px rgba(0,0,0,.5),',
-    'inset 0 -2px 5px rgba(0,0,0,.45)}',
-    /* armed for Twins: warm gold. armed for Jackpot: the lever knob\u2019s red. */
-    '.luck.twins .dome{background:radial-gradient(circle at 32% 26%,#FFD98A,#E9982B 72%)}',
-    '.luck.jack .dome{background:radial-gradient(circle at 32% 26%,#FF8A8A,#C31432 72%)}',
-    '.luck.twins .dome svg,.luck.jack .dome svg{fill:#FFF6DF;',
-    'filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}',
-    '@keyframes domeglow{0%,100%{box-shadow:0 5px 13px rgba(0,0,0,.5),',
-    'inset 0 -3px 7px rgba(0,0,0,.4),0 0 0 0 var(--glow2)}',
-    '50%{box-shadow:0 5px 13px rgba(0,0,0,.5),',
-    'inset 0 -3px 7px rgba(0,0,0,.4),0 0 17px 3px var(--glow2)}}',
-    '.luck.twins .dome,.luck.jack .dome{animation:domeglow 1.5s ease-in-out infinite}',
-    '.lmount{width:30px;height:9px;border-radius:0 0 6px 6px;',
-    'background:var(--mount);border:1px solid var(--cab-br);border-top:0;margin-top:-4px}',
-    '.llabel{font-size:8.5px;font-weight:800;letter-spacing:.14em;',
-    'text-transform:uppercase;color:var(--mut);transition:color .25s}',
-    '.luck.twins .llabel{color:var(--gold)}',
-    '.luck.jack .llabel{color:#FF8A8A}',
+    /* Luck Boost lives on a deck plate along the bottom of the cabinet — the one
+       strip of the machine that holds nothing else. It is always there, in both
+       modes: a player sees a real switch that is locked, which is what a cabinet
+       looks like, rather than a control that appears out of nowhere.
+
+       Almost wordless on purpose. The plate is named once, and the three
+       positions are marked the way the win messages already mark themselves —
+       one dash, two faces, three faces. Nobody has to be told that three faces
+       is the jackpot; the machine has been saying it all along. */
+    '.luck{display:flex;align-items:center;gap:9px;margin-top:12px;',
+    'padding:5px 7px;border-radius:11px;background:var(--mount);',
+    'border:1px solid var(--cab-br);transition:opacity .3s}',
+    '.luck.locked{opacity:.42;pointer-events:none}',
+    '.dname{display:flex;align-items:center;gap:4px;flex:none;',
+    'font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;',
+    'color:var(--mut);transition:color .25s}',
+    '.dlock{width:9px;height:9px;stroke:currentColor;fill:none;stroke-width:2.4;display:none}',
+    '.luck.locked .dlock{display:block}',
+    '.luck.twins .dname{color:var(--gold)}',
+    '.luck.jack .dname{color:#FF8A8A}',
+    '.track{position:relative;flex:1;height:14px;border-radius:8px;cursor:pointer;',
+    'background:var(--reel);box-shadow:inset 0 2px 5px rgba(0,0,0,.4);',
+    'overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent}',
+    '.track:focus-visible{outline:2px solid var(--gold-lit);outline-offset:2px}',
+    /* Gold while it is a nudge, red as it approaches certainty — the same two
+       colours Twins and Jackpot already use, so the bar says which end it is
+       heading for without naming either. */
+    '.fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:8px;',
+    'background:linear-gradient(90deg,#E9982B,#FFD98A 55%,#FF8A8A 88%,#C31432);',
+    'background-size:calc(100% * var(--luckinv,1)) 100%;',
+    'box-shadow:0 0 10px -1px var(--glow2);',
+    'transition:width .22s cubic-bezier(.4,1.3,.5,1)}',
+    /* ten notches, so a tap lands somewhere repeatable */
+    '.ticks{position:absolute;inset:0;pointer-events:none;',
+    'background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),',
+    'rgba(0,0,0,.35) calc(10% - 1px) 10%)}',
+    '.dface{width:15px;height:15px;flex:none;display:block;',
+    'filter:grayscale(1) brightness(1.4);transition:filter .3s,transform .3s}',
+    '.luck.on .dface{filter:none}',
     /* the window wears the same colour, so the machine shows what is loaded */
     '.window.boost{border-color:var(--gold-lit);',
     'box-shadow:var(--win-sh),0 0 20px -3px var(--glow2)}',
@@ -825,16 +842,19 @@
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
           '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button></div>' +
+        '<div class="luck locked">' +
+          '<span class="dname">Luck<svg class="dlock" viewBox="0 0 24 24">' +
+            '<rect x="4" y="11" width="16" height="10" rx="2"/>' +
+            '<path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>' +
+          '<div class="track" role="slider" aria-label="Luck" tabindex="0">' +
+            '<div class="fill"></div><div class="ticks"></div></div>' +
+          '<img class="dface" src="' + FACE + '" alt="">' +
+        '</div>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
         '<div class="toast"><div class="card"></div></div>' +
         '<div class="copy">&copy; 2026 Lucky Maco</div>' +
-        '<div class="luck" hidden>' +
-          '<button class="dome" aria-label="Luck Boost">' +
-            '<svg viewBox="0 0 24 24"><path d="M12 2.5 14 9.4l6.9 2-6.9 2-2 6.9-2-6.9-6.9-2 6.9-2z"/>' +
-            '</svg></button>' +
-          '<div class="lmount"></div><span class="llabel">Luck</span></div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
       '</div>' +
@@ -1922,10 +1942,6 @@
   /* ── spin ─────────────────────────────────────────────────────────────── */
   function spin(force) {
     if (spinning) return;
-    /* A loaded boost is spent by the pull that uses it, so the button never
-       leaves the machine quietly rigged for the pull after. Spent after the
-       guard, or a tap during a spin would throw it away. */
-    if (!force && boost) { force = boost; setBoost(null); }
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
@@ -2265,7 +2281,7 @@
   function buildSheet() {
     var pct = function (v) { return (v * 100).toFixed(0) + '%'; };
     /* In Player Mode the sheet reports; in Operator Mode it edits. */
-    var op = !testPanel.hidden;
+    var op = unlocked;
     var step = function (k, d, val) {
       return op ? '<span class="stepcell">' +
         '<button class="step" data-k="' + k + '" data-d="' + (-d) + '">&minus;</button>' +
@@ -2283,6 +2299,12 @@
         '<tr><td>Twins &mdash; 2 identical</td><td>' +
           step('twins', 0.01, pct(CFG.twins)) + '</td></tr>' +
         '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) + '</td></tr>' +
+        /* With the Luck bar up, the three rows above are no longer what the
+           machine is actually doing — say so rather than quietly lying. */
+        (luckLevel > 0
+          ? '<tr><td>Luck bar at ' + Math.round(luckLevel * 100) + '%</td><td>' +
+              pct(odds().triple) + ' / ' + pct(odds().twins) + '</td></tr>'
+          : '') +
 
       '</table>' +
       '<h3>Machine</h3><table>' +
@@ -2433,7 +2455,8 @@
      leave. 900ms window, so it takes a genuine triple-click rhythm rather than
      three idle taps. Session-scoped, so it can never linger into a demo. */
   var TAPS = 3, TAP_WINDOW = 900, toggledAt = 0;
-  var testPanel = $('.luck'), taps = 0, tapAt = 0;
+  var unlocked = false;                       // Game Changer, the one source of truth
+  var taps = 0, tapAt = 0;
   var marquee, mark;
 
   /* One pair of padlocks, shared by the mode toast and the sheet's badge, so the
@@ -2458,14 +2481,15 @@
   }
 
   function setTest(on) {
-    testPanel.hidden = !on;
+    unlocked = on;
     marquee.classList.toggle('armed', on);      // dashed ring = armed, at a glance
     try { on ? sessionStorage.setItem('luckymaco:test', '1')
              : sessionStorage.removeItem('luckymaco:test'); } catch (e) {}
     /* One line. The breathing cog says where to go next, so the second line was
        telling you something the interface already shows. */
     $('.cog').classList.toggle('unlocked', on);
-    if (!on) setBoost(null);                    // never leave a rigged pull armed
+    luck.classList.toggle('locked', !on);       // the switch is there either way
+    if (!on) setLuck(0, true);                  // but never left leaning
     toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
              : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
     if (on) {
@@ -2505,29 +2529,59 @@
     tapAt = now;
     if (taps >= TAPS) {
       taps = 0; tapAt = 0; toggledAt = now;
-      setTest(testPanel.hidden);
+      setTest(!unlocked);
     }
   });
 
-  /* Luck Boost holds an outcome until it is spent, rather than firing a pull of
-     its own — you still work the lever, and what comes up is what you loaded.
-     Off -> Twins -> Jackpot -> off, one button, colour says which. */
-  var boost = null, luck = $('.luck');
-  function setBoost(v) {
-    boost = v;
-    luck.classList.toggle('twins', v === 'PAIR');
-    luck.classList.toggle('jack', v === 'TRIPLE');
+  /* The bar stays where it is put — a setting, not a shot. Ten notches, so a
+     tap lands somewhere you can name and come back to. */
+  var luck = $('.luck'), track = $('.track'), fillEl = $('.fill');
+  function setLuck(f, quiet) {
+    f = Math.max(0, Math.min(1, Math.round(f * 10) / 10));
+    if (f === luckLevel && quiet) return;
+    var was = luckLevel;
+    luckLevel = f;
+    fillEl.style.width = (f * 100) + '%';
+    fillEl.style.setProperty('--luckinv', f ? (1 / f) : 1);   // keep the ramp full-length
+    luck.classList.toggle('on', f > 0);
+    luck.classList.toggle('twins', f > 0 && f < 0.75);
+    luck.classList.toggle('jack', f >= 0.75);
     var w = $('.window');
-    w.classList.toggle('boost', v === 'PAIR');
-    w.classList.toggle('boostjack', v === 'TRIPLE');
-    $('.llabel').textContent = v === 'PAIR' ? 'Twins' : v === 'TRIPLE' ? 'Jackpot' : 'Luck';
+    w.classList.toggle('boost', f > 0 && f < 0.75);
+    w.classList.toggle('boostjack', f >= 0.75);
+    track.setAttribute('aria-valuetext', Math.round(f * 100) + '%');
+    if (!quiet && f !== was) tone(500 + f * 700, 0.05, 'square', 0.07);
   }
-  $('.dome').addEventListener('click', function (e) {
-    e.stopPropagation();
-    setBoost(boost === null ? 'PAIR' : boost === 'PAIR' ? 'TRIPLE' : null);
-    if (boost) { tone(boost === 'TRIPLE' ? 1180 : 880, 0.07, 'square', 0.09); }
-    else tone(420, 0.08, 'square', 0.07);
+  function luckFromX(x) {
+    var b = track.getBoundingClientRect();
+    return b.width ? (x - b.left) / b.width : 0;
+  }
+  var sliding = false;
+  track.addEventListener('pointerdown', function (e) {
+    e.stopPropagation(); e.preventDefault();
+    /* pointer-events:none already stops a real tap while locked. This is for
+       everything that is not a real tap. */
+    if (!unlocked) return;
+    sliding = true;
+    try { track.setPointerCapture(e.pointerId); } catch (err) {}
+    setLuck(luckFromX(e.clientX));
   });
+  track.addEventListener('pointermove', function (e) {
+    if (sliding && unlocked) setLuck(luckFromX(e.clientX), true);
+  });
+  track.addEventListener('pointerup', function (e) {
+    sliding = false;
+    try { track.releasePointerCapture(e.pointerId); } catch (err) {}
+  });
+  track.addEventListener('click', function (e) { e.stopPropagation(); });
+  track.addEventListener('keydown', function (e) {
+    var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 0.1
+          : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -0.1 : 0;
+    if (!d || !unlocked) return;
+    e.preventDefault(); e.stopPropagation();
+    setLuck(luckLevel + d);
+  });
+
 
   var wasArmed = false;
   try { wasArmed = sessionStorage.getItem('luckymaco:test') === '1'; } catch (e) {}
@@ -2575,7 +2629,7 @@
       if (!PAGE) close();
     }
     if (e.code === 'Space') { e.preventDefault(); yank(); }
-    if (!testPanel.hidden) {
+    if (unlocked) {
       var forced = { Digit1: 'TRIPLE', Digit2: 'PAIR' }[e.code];
       if (forced) { e.preventDefault(); yank(forced); }
     }
