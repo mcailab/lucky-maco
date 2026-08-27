@@ -847,6 +847,7 @@
           '<button class="ctl tog" aria-label="Switch theme"></button>' +
           '<button class="ctl snd" aria-label="Sound"></button>' +
           '<button class="ctl cog" aria-label="Settings and embed code"></button>' +
+          '<button class="ctl rst" aria-label="Reset the machine"></button>' +
         '</div>' +
       '</div>' +
       '<div class="cab">' +
@@ -875,8 +876,10 @@
         '<div class="actions">' +
         '<div class="progress"></div>' +
         '<button class="share off">' +
-          '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
-          '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' +
+          /* the three-dots-and-two-lines share mark, the one people recognise */
+          '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.6"/>' +
+          '<circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/>' +
+          '<path d="M8.3 10.8 15.7 6.7M8.3 13.2l7.4 4.1"/></svg>' +
           '<span class="slabel">Share</span></button></div>' +
         '<div class="luck locked">' +
           '<span class="dname">Luck<svg class="dlock" viewBox="0 0 24 24">' +
@@ -1590,6 +1593,11 @@
      x's and keeping the one that settles LOWEST is what makes a heap fill its
      gaps and mound up rather than tower. Shared by the hopper and the jackpot. */
   var lastPile = [], lastResult = null, lastMaco = null;
+  /* Bumped by a reset. Anything staged across time carries the generation it
+     was scheduled in and gives up if the machine has moved on since — a reset
+     mid-LUCKY-MACO would otherwise land its later steps on a machine that has
+     already gone back to the start. */
+  var gen = 0;
   function clearDrops() {
     while (dumpBox.firstChild) dumpBox.removeChild(dumpBox.firstChild);
   }
@@ -1781,6 +1789,7 @@
   }
 
   function wildfire() {
+    var myGen = gen, live = function () { return myGen === gen; };
     /* One pattern for the whole sequence: navigator.vibrate replaces whatever is
        running, so staged calls would cut each other off. */
     buzz([55, 75, 55, 75, 55, 75, 55, 75, 55, 280,
@@ -1825,6 +1834,7 @@
 
     /* 3. the hopper and the reels go the same way */
     setTimeout(function () {
+      if (!live()) return;
       emptyHopper();
       $('.window').classList.add('emptied');
     }, t - 200);
@@ -1850,6 +1860,7 @@
 
     /* 4. the last one does not leave — it grows to fill the window, then waves */
     setTimeout(function () {
+      if (!live()) return;
       var wr = $('.window').getBoundingClientRect();
       var S = wr.height * 0.86;
       var el = document.createElement('img');
@@ -1880,6 +1891,7 @@
 
     /* 5. the result line is the Grand's own */
     setTimeout(function () {
+      if (!live()) return;
       lamps = 0; drawLamps(); saveLamps();
       lastResult = { pattern: 'WILDFIRE', reels: lastResult ? lastResult.reels : [] };
       msg.className = 'msg jackpot';
@@ -2012,8 +2024,11 @@
         strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.5,.2,.25,1)';
         strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
       }, lead);
-      setTimeout(function () { sStop(); hStop(); if (++done === 3) settle(res); },
-                 lead + dur[i] + 60);
+      var myGen = gen;
+      setTimeout(function () {
+        if (myGen !== gen) return;              // a reset happened mid-spin
+        sStop(); hStop(); if (++done === 3) settle(res);
+      }, lead + dur[i] + 60);
     });
   }
 
@@ -2458,6 +2473,70 @@
     buildSheet(); sheet.classList.add('on');
   });
 
+  /* ── reset ──────────────────────────────────────────────────────────────
+     Everything the machine remembers, back to the box: the meter, the luck it
+     has been given, what has been earned, Game Changer, sound and theme. It
+     also stops whatever is mid-flight — a reset during the LUCKY MACO release
+     would otherwise leave sprites sailing up an empty page and timers landing
+     on a machine that no longer matches them. */
+  var rst = $('.rst');
+  rst.innerHTML = '<svg viewBox="0 0 24 24">' +
+    '<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v5h5"/></svg>';
+  rst.addEventListener('click', function (e) {
+    e.stopPropagation();
+    resetAll();
+  });
+
+  function resetAll() {
+    /* 1. stop the show */
+    gen++;                             // everything in flight is now stale
+    if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
+    $('.toast').classList.remove('on');
+    var junk = root.querySelectorAll('.bigmaco, .wild');
+    for (var j = 0; j < junk.length; j++) junk[j].remove();
+    lastMaco = null;
+    granting = false;
+    spinning = false;
+    lever.classList.remove('busy');
+    marquee.classList.remove('fast', 'allon', 'lit1', 'lit2', 'litJ', 'litG');
+    $('.window').classList.remove('live', 'emptied');
+    sheet.classList.remove('on');
+    stopSpinSound();
+
+    /* 2. forget everything */
+    try {
+      localStorage.removeItem('luckymaco:lamps');
+      localStorage.removeItem('luckymaco:sound');
+      localStorage.removeItem(STORE);
+      localStorage.removeItem('luckymaco:packing');
+      localStorage.removeItem('luckymaco:stock');
+      localStorage.removeItem('luckymaco:shakeForce');
+    } catch (err) {}
+    try { sessionStorage.removeItem('luckymaco:test'); } catch (err) {}
+
+    /* 3. back to the defaults it shipped with */
+    CFG.packing = DEFAULTS.packing;
+    CFG.stock = DEFAULTS.stock;
+    CFG.shakeForce = DEFAULTS.shakeForce;
+    sound = true; paintSound();
+    if (!THEME_PINNED) { CFG.theme = 'auto'; applyTheme(); paintToggle(); }
+    setTest(false);                    // clears luck, re-arms, locks the deck
+    lamps = 0; drawLamps(); saveLamps();
+    lastResult = null;
+    clearDrops();
+    fillHopper(); pourHopper();
+    hopper.classList.remove('open');
+    fillIn();
+    msg.className = 'msg';
+    idleShowing = true;
+    msg.innerHTML = idlePrompt();          // the same opening line, not a copy of it
+    fitLine();
+    $('.share').classList.add('off');
+    sharePitch();
+    toast('<b><img class="tmaco" src="' + BODY + '" alt="">Back to the start</b>' +
+          '<small>Everything reset</small>', 1800);
+  }
+
   var tog = $('.tog');
   var SUN  = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/>' +
              '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2' +
@@ -2647,7 +2726,7 @@
   function sharePitch() {
     var b = $('.share'), on = !unlocked && !earned.share && luckLevel < PLAYER_TOP;
     b.classList.toggle('pays', on);
-    $('.slabel').textContent = on ? 'Share for luck' : 'Share';
+    $('.slabel').textContent = on ? 'Share to boost luck' : 'Share';
   }
 
   /* Every gain announces itself. A bar that creeps up while you are looking at
