@@ -215,18 +215,23 @@
     /* Palette. Light on bare :host, dark swapped in by attribute — the attribute
        is set from JS so it works in a shadow root on every browser. Tokens follow
        Master Prize's brand vars (--primary #1B2A5B, --accent #E9982B). */
+    /* Light mode was near-white on near-white: cabinet, hopper and reel window
+       all sat within a few percent of each other, so nothing read as a separate
+       part. The cabinet stays bright, but the recessed pieces are now a cooler
+       slate and the borders carry more weight — contrast from depth rather than
+       from turning up the colour. */
     ':host{',
-    '--cab:linear-gradient(180deg,#FFFFFF,#F2F5FA);--cab-br:rgba(27,42,91,.14);',
-    '--cab-sh:0 24px 60px rgba(27,42,91,.22);',
-    '--txt:#2D3436;--mut:#6B7280;--faint:#9AA1AC;',
-    '--win:linear-gradient(180deg,#FBFCFE,#EDF1F7);--win-br:rgba(233,152,43,.45);',
-    '--win-sh:inset 0 4px 14px rgba(27,42,91,.10);--reel:rgba(27,42,91,.05);',
-    '--gold:#B87410;--gold-lit:#E9982B;--gold-soft:rgba(233,152,43,.38);',
-    '--mq:linear-gradient(180deg,rgba(233,152,43,.18),rgba(233,152,43,.04));',
-    '--mq-sh:inset 0 1px 0 rgba(255,255,255,.75);',
-    '--glow1:rgba(233,152,43,.14);--glow2:rgba(233,152,43,.30);',
-    '--mount:linear-gradient(180deg,#DFE4EE,#C2C9D8);--rail:rgba(27,42,91,.13);',
-    '--scrim:rgba(27,42,91,.42);--close-bg:rgba(27,42,91,.08);--close-fg:#2D3436}',
+    '--cab:linear-gradient(180deg,#FFFFFF,#EFF3FA);--cab-br:rgba(27,42,91,.20);',
+    '--cab-sh:0 24px 60px rgba(27,42,91,.26);',
+    '--txt:#232A33;--mut:#5A6472;--faint:#8E97A5;',
+    '--win:linear-gradient(180deg,#DCE3F0,#CDD6E8);--win-br:rgba(214,132,20,.62);',
+    '--win-sh:inset 0 5px 16px rgba(27,42,91,.20);--reel:rgba(27,42,91,.07);',
+    '--gold:#A9660B;--gold-lit:#E08A17;--gold-soft:rgba(224,138,23,.42);',
+    '--mq:linear-gradient(180deg,rgba(224,138,23,.26),rgba(224,138,23,.07));',
+    '--mq-sh:inset 0 1px 0 rgba(255,255,255,.85);',
+    '--glow1:rgba(224,138,23,.18);--glow2:rgba(224,138,23,.38);',
+    '--mount:linear-gradient(180deg,#D5DCE9,#B3BCCD);--rail:rgba(27,42,91,.18);',
+    '--scrim:rgba(27,42,91,.42);--close-bg:rgba(27,42,91,.10);--close-fg:#232A33}',
 
     ':host([data-theme="dark"]){',
     '--cab:linear-gradient(180deg,#22305F,#121A38);--cab-br:rgba(255,255,255,.10);',
