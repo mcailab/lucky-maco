@@ -520,7 +520,9 @@
        the machine never shifts when a result lands. */
     /* The line and the share button share one cell — only one is ever shown, and
        the cell holds the row's height either way. */
-    '.actions{display:grid;place-items:center;margin-top:8px;',
+    /* Under the belly, so Share and the free line always read as a caption to
+       the lamps rather than something that floats above them. */
+    '.actions{display:grid;place-items:center;margin-top:11px;',
     'min-height:calc(var(--sharepad) * 2 + 16px)}',
     '.actions > *{grid-area:1/1}',
     /* pointer-events:none is not decoration. The line is wider than the button,
@@ -614,6 +616,48 @@
     '.sheet button:hover{filter:brightness(1.08)}',
 
     /* lever — right-hand side, pull down, springs back */
+    /* Luck Boost, mounted on the left flank the way the lever is mounted on the
+       right — a lit push button on a plate, the two reading as a matched pair of
+       cabinet controls rather than one control and one widget. Only exists in
+       Game Changer; players never see a machine with a rigged button on it. */
+    /* Held at the cabinet\u2019s vertical middle, which is where the reel window
+       and the lever\u2019s knob both sit, at every breakpoint — a fixed offset from
+       the top drifted up beside the hopper as the machine grew. */
+    '.luck{position:absolute;left:-20px;top:50%;transform:translateY(-50%);width:58px;',
+    'display:flex;flex-direction:column;align-items:center;gap:5px;z-index:3}',
+    '.luck[hidden]{display:none}',
+    '.dome{width:42px;height:42px;border-radius:50%;padding:0;cursor:pointer;',
+    'display:grid;place-items:center;-webkit-tap-highlight-color:transparent;',
+    'border:2px solid var(--mount);',
+    'background:radial-gradient(circle at 32% 26%,#5C6478,#2A3040 72%);',
+    'box-shadow:0 5px 13px rgba(0,0,0,.5),inset 0 -3px 7px rgba(0,0,0,.4);',
+    'transition:transform .12s,box-shadow .25s,background .25s}',
+    '.dome svg{width:19px;height:19px;display:block;fill:#AEB6C6;',
+    'transition:fill .25s,filter .25s}',
+    '.dome:active{transform:translateY(3px);box-shadow:0 1px 4px rgba(0,0,0,.5),',
+    'inset 0 -2px 5px rgba(0,0,0,.45)}',
+    /* armed for Twins: warm gold. armed for Jackpot: the lever knob\u2019s red. */
+    '.luck.twins .dome{background:radial-gradient(circle at 32% 26%,#FFD98A,#E9982B 72%)}',
+    '.luck.jack .dome{background:radial-gradient(circle at 32% 26%,#FF8A8A,#C31432 72%)}',
+    '.luck.twins .dome svg,.luck.jack .dome svg{fill:#FFF6DF;',
+    'filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}',
+    '@keyframes domeglow{0%,100%{box-shadow:0 5px 13px rgba(0,0,0,.5),',
+    'inset 0 -3px 7px rgba(0,0,0,.4),0 0 0 0 var(--glow2)}',
+    '50%{box-shadow:0 5px 13px rgba(0,0,0,.5),',
+    'inset 0 -3px 7px rgba(0,0,0,.4),0 0 17px 3px var(--glow2)}}',
+    '.luck.twins .dome,.luck.jack .dome{animation:domeglow 1.5s ease-in-out infinite}',
+    '.lmount{width:30px;height:9px;border-radius:0 0 6px 6px;',
+    'background:var(--mount);border:1px solid var(--cab-br);border-top:0;margin-top:-4px}',
+    '.llabel{font-size:8.5px;font-weight:800;letter-spacing:.14em;',
+    'text-transform:uppercase;color:var(--mut);transition:color .25s}',
+    '.luck.twins .llabel{color:var(--gold)}',
+    '.luck.jack .llabel{color:#FF8A8A}',
+    /* the window wears the same colour, so the machine shows what is loaded */
+    '.window.boost{border-color:var(--gold-lit);',
+    'box-shadow:var(--win-sh),0 0 20px -3px var(--glow2)}',
+    '.window.boostjack{border-color:#E4574F;',
+    'box-shadow:var(--win-sh),0 0 20px -3px rgba(228,87,79,.55)}',
+    '@media (prefers-reduced-motion:reduce){.luck .dome{animation:none}}',
     '.lever{position:absolute;right:-22px;top:60px;width:62px;height:210px;touch-action:none;',
     'cursor:grab;-webkit-user-select:none;user-select:none;',
     'transition:opacity .2s}',
@@ -754,10 +798,7 @@
     '<div class="scrim" role="dialog" aria-modal="true" aria-label="Lucky Maco">' +
       '<div class="stack">' +
       '<div class="bar">' +
-        '<div class="test" hidden>' +
-          '<button data-f="TRIPLE">Jackpot</button>' +
-          '<button data-f="PAIR">Twins</button>' +
-        '</div>' +
+
         '<div class="ctls">' +
           '<button class="ctl tog" aria-label="Switch theme"></button>' +
           '<button class="ctl snd" aria-label="Sound"></button>' +
@@ -786,17 +827,22 @@
         '</div>' +
         '<div class="labels"><span>Morning</span><span>Afternoon</span><span>Evening</span></div>' +
         '<div class="msg" aria-live="polite"></div>' +
+        '<div class="belly"></div>' +
         '<div class="actions">' +
         '<div class="progress"></div>' +
         '<button class="share off">' +
           '<svg viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4"/>' +
           '<path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Share</button></div>' +
-        '<div class="belly"></div>' +
         '<div class="sheet">' +
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
         '<div class="toast"><div class="card"></div></div>' +
         '<div class="copy">&copy; 2026 Lucky Maco</div>' +
+        '<div class="luck" hidden>' +
+          '<button class="dome" aria-label="Luck Boost">' +
+            '<svg viewBox="0 0 24 24"><path d="M12 2.5 14 9.4l6.9 2-6.9 2-2 6.9-2-6.9-6.9-2 6.9-2z"/>' +
+            '</svg></button>' +
+          '<div class="lmount"></div><span class="llabel">Luck</span></div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
       '</div>' +
@@ -1790,7 +1836,7 @@
       lastResult = { pattern: 'WILDFIRE', reels: lastResult ? lastResult.reels : [] };
       msg.className = 'msg jackpot';
       msg.innerHTML = '<b><img src="' + BODY + '" alt="">LUCKY MACO!</b>' +
-        '<small>Thank you &mdash; I&rsquo;ll bring you fortune all day</small>';
+        '<small>I&rsquo;ll bring you fortune all day</small>';
       fitLine();
       $('.share').classList.remove('off');
       $('.progress').classList.add('off');
@@ -1884,6 +1930,10 @@
   /* ── spin ─────────────────────────────────────────────────────────────── */
   function spin(force) {
     if (spinning) return;
+    /* A loaded boost is spent by the pull that uses it, so the button never
+       leaves the machine quietly rigged for the pull after. Spent after the
+       guard, or a tap during a spin would throw it away. */
+    if (!force && boost) { force = boost; setBoost(null); }
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
@@ -2391,7 +2441,7 @@
      leave. 900ms window, so it takes a genuine triple-click rhythm rather than
      three idle taps. Session-scoped, so it can never linger into a demo. */
   var TAPS = 3, TAP_WINDOW = 900, toggledAt = 0;
-  var testPanel = $('.test'), taps = 0, tapAt = 0;
+  var testPanel = $('.luck'), taps = 0, tapAt = 0;
   var marquee, mark;
 
   /* One pair of padlocks, shared by the mode toast and the sheet's badge, so the
@@ -2423,6 +2473,7 @@
     /* One line. The breathing cog says where to go next, so the second line was
        telling you something the interface already shows. */
     $('.cog').classList.toggle('unlocked', on);
+    if (!on) setBoost(null);                    // never leave a rigged pull armed
     toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
              : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
     if (on) {
@@ -2466,8 +2517,24 @@
     }
   });
 
-  root.querySelectorAll('.test button').forEach(function (b) {
-    b.addEventListener('click', function (e) { e.stopPropagation(); yank(b.dataset.f); });
+  /* Luck Boost holds an outcome until it is spent, rather than firing a pull of
+     its own — you still work the lever, and what comes up is what you loaded.
+     Off -> Twins -> Jackpot -> off, one button, colour says which. */
+  var boost = null, luck = $('.luck');
+  function setBoost(v) {
+    boost = v;
+    luck.classList.toggle('twins', v === 'PAIR');
+    luck.classList.toggle('jack', v === 'TRIPLE');
+    var w = $('.window');
+    w.classList.toggle('boost', v === 'PAIR');
+    w.classList.toggle('boostjack', v === 'TRIPLE');
+    $('.llabel').textContent = v === 'PAIR' ? 'Twins' : v === 'TRIPLE' ? 'Jackpot' : 'Luck';
+  }
+  $('.dome').addEventListener('click', function (e) {
+    e.stopPropagation();
+    setBoost(boost === null ? 'PAIR' : boost === 'PAIR' ? 'TRIPLE' : null);
+    if (boost) { tone(boost === 'TRIPLE' ? 1180 : 880, 0.07, 'square', 0.09); }
+    else tone(420, 0.08, 'square', 0.07);
   });
 
   var wasArmed = false;
