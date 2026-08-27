@@ -405,6 +405,22 @@
     '.sheet pre{margin:0 0 10px;padding:11px 12px;border-radius:10px;overflow-x:auto;',
     'background:var(--reel);border:1px solid var(--cab-br);',
     'font:500 10.5px/1.6 ui-monospace,Menlo,monospace;color:var(--txt);white-space:pre}',
+    '.sheet .shut{position:absolute;top:12px;right:14px;width:28px;height:28px;',
+    'border:0;border-radius:50%;background:var(--close-bg);color:var(--close-fg);',
+    'font-size:16px;line-height:1;cursor:pointer;padding:0;z-index:2}',
+    '.sheet .shut:hover{filter:brightness(.9)}',
+    '.sheet .snip{position:relative;cursor:pointer;padding-right:38px;',
+    'transition:border-color .15s}',
+    '.sheet .snip:hover{border-color:var(--gold-lit)}',
+    '.sheet .cpy{position:absolute;top:9px;right:10px;width:16px;height:16px;opacity:.55}',
+    '.sheet .snip:hover .cpy{opacity:1}',
+    '.sheet .cpy svg{width:16px;height:16px;stroke:var(--gold);fill:none;stroke-width:2;',
+    'stroke-linejoin:round}',
+    '.sheet .done-badge{position:absolute;top:7px;right:8px;padding:3px 8px;border-radius:7px;',
+    'background:var(--gold-lit);color:#fff;font:700 10px/1.4 inherit;letter-spacing:.06em;',
+    'text-transform:uppercase;opacity:0;transform:translateY(-3px);',
+    'transition:opacity .18s,transform .18s;pointer-events:none}',
+    '.sheet .done-badge.on{opacity:1;transform:none}',
     '.sheet .row{display:flex;gap:8px}',
     '.sheet button{flex:1;padding:9px;border:1px solid var(--cab-br);border-radius:10px;',
     'background:var(--reel);color:var(--txt);font:700 11px/1 inherit;cursor:pointer;',
@@ -597,9 +613,16 @@
     try { buzzWorked = navigator.vibrate(pattern) !== false; }
     catch (e) { buzzWorked = false; }
   }
-  var hPull  = function () { buzz(14); };                        // lever released
+  var hPull  = function () {
+    if (shakeBuzzed) { shakeBuzzed = false; return; }   // the shake already spoke
+    buzz(14);
+  };
   var hStop  = function () { buzz(9); };                         // a reel lands
-  var hShake = function () { buzz(28); };                        // shake registered
+  /* navigator.vibrate REPLACES whatever is running rather than queueing, so the
+     lever's own buzz 0ms later used to wipe this one out entirely. The shake now
+     plays one pattern for the whole gesture and the lever buzz stands down. */
+  var shakeBuzzed = false;
+  var hShake = function () { shakeBuzzed = true; buzz([45, 70, 25]); };
   var hPair  = function () { buzz([30, 45, 30]); };
   var hJack  = function () { buzz([70, 45, 70, 45, 70, 45, 90, 60, 320]); };  // long finish
 
@@ -1205,6 +1228,7 @@
   function buildSheet() {
     var pct = function (v) { return (v * 100).toFixed(0) + '%'; };
     sheet.innerHTML =
+      '<button class="shut" aria-label="Close settings">&#10005;</button>' +
       '<h3>Odds</h3><table>' +
         '<tr><td>Jackpot &mdash; 3 identical</td><td>' + pct(CFG.triple) + '</td></tr>' +
         '<tr><td>Twins &mdash; 2 identical</td><td>' + pct(CFG.twins) + '</td></tr>' +
@@ -1251,21 +1275,21 @@
               'Safari &rarr; Motion &amp; Orientation Access, then reload.</p>' : '')
         : '') +
       '<h3>Add to your page</h3>' +
-      '<pre>' + esc(embedCode()) + '</pre>' +
-      '<div class="row"><button class="copy">Copy code</button>' +
-      '<button class="primary done">Close</button></div>';
-    sheet.querySelector('.copy').addEventListener('click', function (e) {
+      '<pre class="snip" title="Click to copy">' + esc(embedCode()) +
+      '<span class="cpy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/>' +
+      '<path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span>' +
+      '<span class="done-badge">Copied</span></pre>';
+    var snip = sheet.querySelector('.snip');
+    snip.addEventListener('click', function (e) {
       e.stopPropagation();
-      var btn = e.currentTarget;
+      var badge = snip.querySelector('.done-badge');
       var write = navigator.clipboard && navigator.clipboard.writeText
         ? navigator.clipboard.writeText(embedCode())
         : Promise.reject();
-      write.then(function () { btn.textContent = 'Copied'; })
-           .catch(function () { btn.textContent = 'Select and copy'; });
-      setTimeout(function () { btn.textContent = 'Copy code'; }, 1600);
-    });
-    sheet.querySelector('.done').addEventListener('click', function (e) {
-      e.stopPropagation(); sheet.classList.remove('on');
+      write.then(function () { badge.textContent = 'Copied'; })
+           .catch(function () { badge.textContent = 'Select and copy'; });
+      badge.classList.add('on');
+      setTimeout(function () { badge.classList.remove('on'); }, 1500);
     });
     sheet.querySelectorAll('.step').forEach(function (b) {
       b.addEventListener('click', function (e) {
@@ -1309,6 +1333,11 @@
     'a2 2 0 1 1 0-4 1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6' +
     'a2 2 0 1 1 4 0A1.6 1.6 0 0 0 15.7 5.7l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 19.4 11' +
     'a2 2 0 1 1 0 4z"/></svg>';
+  sheet.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('.shut')) {
+      e.stopPropagation(); sheet.classList.remove('on');
+    }
+  });
   cog.addEventListener('click', function (e) {
     e.stopPropagation();
     if (sheet.classList.contains('on')) { sheet.classList.remove('on'); return; }
