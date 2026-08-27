@@ -632,6 +632,12 @@
     'letter-spacing:.06em;text-transform:uppercase}',
     '.sheet button.primary{background:var(--gold-lit);color:#fff;border-color:transparent}',
     '.sheet .stepcell{white-space:nowrap;display:inline-flex;align-items:center}',
+    /* what the machine is doing right now, beside what it was set to */
+    '.sheet .now{display:inline-block;min-width:38px;margin-left:10px;text-align:right;',
+    'color:var(--gold-lit)}',
+    '.sheet .hnote{margin-left:9px;color:var(--gold-lit);font-weight:800;',
+    'letter-spacing:.1em;text-transform:none}',
+    '.sheet .note{margin:-8px 0 14px;font-size:11.5px;line-height:1.45;color:var(--mut)}',
     '.sheet button.step{flex:none;width:30px;padding:5px 0;margin:0 7px;border-radius:8px;',
     'font-size:15px;line-height:1;vertical-align:middle}',
     '.sheet .force{display:inline-block;min-width:24px;text-align:center;vertical-align:middle}',
@@ -2395,15 +2401,34 @@
       '<div class="modebar ' + (op ? 'open' : 'locked') + '">' +
         (op ? LOCK_OPEN : LOCK_SHUT) +
         '<span>' + (op ? 'Game Changer Mode' : 'Player Mode') + '</span></div>' +
-      '<h3>Odds</h3><table>' +
-        '<tr><td>Jackpot &mdash; 3 identical</td><td>' +
-          step('triple', 0.01, pct(CFG.triple)) + '</td></tr>' +
-        '<tr><td>Twins &mdash; 2 identical</td><td>' +
-          step('twins', 0.01, pct(CFG.twins)) + '</td></tr>' +
-        '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) + '</td></tr>' +
-
-
-      '</table>' +
+      /* These three rows are the odds you SET. Luck multiplies them, so once the
+         bar is up they are no longer what the machine is doing — and because
+         Game Changer charges the bar to the top on entry, that was true every
+         single time anyone read this table. The live figure now sits beside the
+         base one whenever the two differ. */
+      (function () {
+        var k = luckMult(), o = odds(), live = k > 1.0001;
+        var now = function (v) {
+          return live ? ' <span class="now">' + pct(v) + '</span>' : '';
+        };
+        var capped = k < 1 + luckLevel - 0.0001;
+        return '<h3>Odds' + (live
+            ? '<span class="hnote">now &times;' + (Math.round(k * 100) / 100) + '</span>' : '') +
+          '</h3><table>' +
+          '<tr><td>Jackpot &mdash; 3 identical</td><td>' +
+            step('triple', 0.01, pct(CFG.triple)) + now(o.triple) + '</td></tr>' +
+          '<tr><td>Twins &mdash; 2 identical</td><td>' +
+            step('twins', 0.01, pct(CFG.twins)) + now(o.twins) + '</td></tr>' +
+          '<tr><td>No match</td><td>' + pct(1 - CFG.triple - CFG.twins) +
+            now(1 - o.triple - o.twins) + '</td></tr>' +
+          '</table>' +
+          (capped
+            ? '<p class="note">The bar reads &times;' + (1 + luckLevel) +
+              ', but Jackpot and Twins already add up to ' +
+              pct(CFG.triple + CFG.twins) + ', so the machine can only go to &times;' +
+              (Math.round(k * 100) / 100) + ' before there is nothing left to win from.</p>'
+            : '');
+      })() +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
         '<tr><td>Rows</td><td>' + CFG.rows + '</td></tr>' +
