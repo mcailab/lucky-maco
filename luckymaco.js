@@ -2645,7 +2645,7 @@
     granting = true;
     lever.classList.add('busy');
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
-          '<small>Luck &times;' + (2 + luckLevel) + '</small>', 2300);
+          '<small>Luck Boost</small>', 2300);
     sWin();
     setTimeout(function () { setLuck(luckLevel + 1); }, 620);   // after he speaks
     setTimeout(function () {
