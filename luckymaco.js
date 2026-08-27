@@ -330,10 +330,11 @@
        the machine down or change its height by a pixel. */
     /* Three tracks: the test buttons sit in the middle one so they stay centred
        on the row no matter how wide the control cluster on the right is. */
-    '.bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;',
+    /* Three buttons and nothing else in the bar now that Game Changer lives on
+       the machine, so they centre over it rather than hugging the right edge. */
+    '.bar{display:flex;align-items:center;justify-content:center;',
     'gap:8px;width:100%;height:38px;flex:0 0 38px}',
-    '.test{grid-column:2;justify-self:center}',
-    '.ctls{grid-column:3;justify-self:end;display:flex;gap:9px}',
+    '.ctls{display:flex;gap:9px}',
     '.ctl{width:36px;height:36px;border:1px solid var(--cab-br);border-radius:50%;',
     'background:var(--cab);color:var(--txt);cursor:pointer;padding:0;',
     'display:grid;place-items:center;-webkit-tap-highlight-color:transparent;',
@@ -353,15 +354,6 @@
     'box-shadow:0 4px 14px rgba(0,0,0,.18),0 0 14px -1px var(--glow2)}}',
     '.ctl.cog.unlocked{animation:cogbreath 2.4s ease-in-out infinite}',
     /* Sits in the top bar beside the mode buttons — never over the machine. */
-    '.test{display:flex;gap:5px;flex-wrap:nowrap;align-items:center;min-width:0}',
-    '.test button{padding:5px 7px;border:1px dashed var(--gold-lit);border-radius:7px;',
-    'background:transparent;color:var(--gold);font:700 8.5px/1 inherit;cursor:pointer;',
-    'letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;opacity:.8;',
-    '-webkit-tap-highlight-color:transparent}',
-    '.test button:hover{opacity:1}',
-    '.test button:hover{background:var(--gold-soft)}',
-    '.test button:active{transform:scale(.94)}',
-    '.test[hidden]{display:none}',
     '.marquee.armed{outline:1px dashed var(--gold-lit);outline-offset:3px}',
     '@keyframes tap{0%{transform:scale(1)}45%{transform:scale(.82)}100%{transform:scale(1)}}',
     '.marquee img.tapped{animation:tap .22s ease-out}',
