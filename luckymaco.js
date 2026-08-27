@@ -490,9 +490,9 @@
     '.msg{min-height:var(--msg);display:grid;place-items:center;text-align:center;',
     'margin-top:10px;padding:0 4px}',
     '.msg b{display:block;font-size:19px;letter-spacing:.03em;white-space:nowrap}',
-    '.msg b img{width:25px;height:25px;vertical-align:-6px;margin-right:7px}',
+    '.msg b img{width:25px;height:25px;vertical-align:-6px;margin-right:11px}',
     '.msg b img + img{margin-left:-13px}',      /* the pair huddles together */
-    '.msg.jackpot b img{width:32px;height:32px;vertical-align:-8px;margin-right:9px;',
+    '.msg.jackpot b img{width:32px;height:32px;vertical-align:-8px;margin-right:14px;',
     'animation:cheer .5s cubic-bezier(.34,1.7,.64,1) 3}',
     '.msg.jackpot b img + img{margin-left:-15px}',
     '.msg.jackpot b img:nth-child(2){animation-delay:.1s}',   /* a wave, not a jolt */
@@ -823,11 +823,17 @@
        wide clipped it off entirely. Frame the union of the two instead, with a
        margin, and the machine sits on the page colour with its lever intact. */
     var PAD = 26;
+    /* End the cabinet under the result text. The live machine reserves room below
+       it for the Share button, which the card has no reason to draw — left in, it
+       is a dead band across the bottom of every card. */
+    var lastEl = msg.querySelector('small') || msg.querySelector('b') || msg;
+    var cabDrawH = Math.min(cabR.height,
+                            lastEl.getBoundingClientRect().bottom - cabR.top + 22);
     var box = {
       left: Math.min(cabR.left, levR.left) - PAD,
       top:  cabR.top - PAD,
       width: Math.max(cabR.right, levR.right) - Math.min(cabR.left, levR.left) + PAD * 2,
-      height: cabR.height + PAD * 2
+      height: cabDrawH + PAD * 2
     };
     var SC = CARD_W / box.width;
     var FOOT = 74;
@@ -905,7 +911,7 @@
     c.fillStyle = dark ? '#0E1430' : '#F4F6FA';
     c.fillRect(0, 0, cv.width, cv.height);
     var cabX = (cabR.left - box.left) * SC, cabY = (cabR.top - box.top) * SC;
-    var cabW = cabR.width * SC, cabH = cabR.height * SC;
+    var cabW = cabR.width * SC, cabH = cabDrawH * SC;
     var g = c.createLinearGradient(0, cabY, 0, cabY + cabH);
     if (dark) { g.addColorStop(0, '#22305F'); g.addColorStop(1, '#121A38'); }
     else      { g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#F2F5FA'); }
