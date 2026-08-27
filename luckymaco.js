@@ -228,6 +228,9 @@
      told to shake itself. */
   var COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
   var ROWS = CFG.rows, CENTRE = (ROWS - 1) / 2;
+  /* How many cells sit above the resting row. Declared here rather than beside
+     the reel code because the stylesheet is built before that and needs it. */
+  var TRAIL = 26, STRIP = TRAIL + ROWS + 1, AT = TRAIL + CENTRE;
   /* Only the centre row pays. The rows above and below are decoration, faded
      out at the edges so the reel reads as a continuous strip behind a window. */
   var MASK = ROWS === 1 ? 'none' :
@@ -285,40 +288,64 @@
        was pinned at 360px, so on a 1440px desktop the machine was 25% of the
        window while filling 88% of a phone — the reels looked small on desktop
        even though they were the same pixels. */
-    ':host{--cabw:min(360px, 88vw);--maxcell:93px;',
+    /* The cabinet is as wide as its reels need and no wider. It used to be a
+       flat 360px, so on a short desktop window — where the cells shrink for
+       height — the reel window stayed 318px around 218px of reels and stranded
+       them in a 100px band of nothing. Deriving the width from --maxcell (a
+       constant per breakpoint, so no circular reference with --cell) keeps the
+       machine in proportion at every size. The floor is what the marquee and
+       the ten belly lamps need. */
+    /* --maxcell was a staircase of nine breakpoints, and every step was more
+       conservative than it needed to be: at 1280x713 it used 52px where 66px
+       fitted. Measured the real ceiling at nine viewport heights and fitted a
+       line through them — the cell now grows continuously with the window
+       instead of jumping, and is bigger than the old staircase everywhere.
+         inner height   fits     this formula gives
+              913        92px          88px
+              813        80px          75px
+              713        66px          60px
+              593        50px          41px */
+    /* Whole pixels, always. A cell of 44.2px renders the sprite soft, and the
+       strip is parked at 26 x cell — so the fraction is multiplied by 26 and the
+       three visible cells end up straddling the reel's edges. round() where it
+       exists; the plain value first so older engines still get a size. */
+    ':host{--maxcell:clamp(18px, calc((100vh - 320px) / 6.6), 88px);',
+    '--maxcell:round(down, clamp(18px, calc((100vh - 320px) / 6.6), 88px), 1px);',
+    '--cabw:min(88vw, max(292px, calc(var(--maxcell) * 3 + 64px)));',
     /* 40 cabinet padding + 16 window padding + 8 for the two gaps between cells,
        so the three cells actually fill the window instead of floating in it. */
     '--cell:min(var(--maxcell), calc((var(--cabw) - 64px) / 3));',
+    '--cell:round(down, min(var(--maxcell), calc((var(--cabw) - 64px) / 3)), 1px);',
     '--hop:90px;--mqpad:14px;--msg:56px;--sharepad:8px;--gap:20px;--winpad:8px;',
     /* The hopper is a separate box, not part of the title glass or the reels,
        so it gets more air than the standard gap on both sides. At --gap it read
        as stuck to the marquee above it. */
     '--hopgap:calc(var(--gap) + 9px);',
 '--belly:54px}',
-    '@media (min-width:620px) and (min-height:880px){',
-    ':host{--cabw:440px;--maxcell:104px;--hop:98px;--mqpad:17px;--msg:58px;',
+    '@media (min-width:620px) and (min-height:840px){',
+    ':host{--hop:98px;--mqpad:17px;--msg:58px;',
 '--sharepad:9px;--gap:18px;--belly:60px}}',
-    '@media (max-height:880px){:host{--maxcell:70px;--hop:76px;--mqpad:12px;',
+    '@media (max-height:880px){:host{--hop:76px;--mqpad:12px;',
 '--msg:48px;--sharepad:7px;--gap:14px;--belly:54px}}',
-    '@media (max-height:810px){:host{--maxcell:60px;--hop:66px;--mqpad:10px;',
+    '@media (max-height:810px){:host{--hop:66px;--mqpad:10px;',
 '--msg:44px;--sharepad:6px;--gap:12px;--belly:48px}}',
-    '@media (max-height:745px){:host{--maxcell:52px;--hop:56px;--mqpad:9px;',
+    '@media (max-height:745px){:host{--hop:56px;--mqpad:9px;',
 '--msg:38px;--sharepad:5px;--gap:10px;--belly:42px}}',
-    '@media (max-height:685px){:host{--maxcell:44px;--hop:47px;--mqpad:7px;',
+    '@media (max-height:685px){:host{--hop:47px;--mqpad:7px;',
 '--msg:34px;--sharepad:4px;--gap:8px;--belly:36px}}',
-    '@media (max-height:625px){:host{--maxcell:40px;--hop:42px;--mqpad:6px;',
+    '@media (max-height:625px){:host{--hop:42px;--mqpad:6px;',
     '--msg:30px;--sharepad:4px;--gap:8px;--belly:31px}}',
-    '@media (max-height:590px){:host{--belly:27px;--maxcell:32px;--hop:35px;--mqpad:5px;',
+    '@media (max-height:590px){:host{--belly:27px;--hop:35px;--mqpad:5px;',
     '--msg:26px;--sharepad:3px;--gap:6px}}',
-    '@media (max-height:550px){:host{--maxcell:26px;--hop:28px;--mqpad:4px;',
+    '@media (max-height:550px){:host{--hop:28px;--mqpad:4px;',
     '--msg:22px;--sharepad:3px;--gap:5px}}',
     /* A phone on its side has no room for a portrait cabinet. Drop the hopper and
        the time-of-day labels rather than clipping the reels, which are the part
        you actually need. */
     '@media (max-height:520px){.marquee img{width:24px;height:24px}',
     '.mq-name{font-size:16px}',
-    ':host{--maxcell:28px;--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
-    '@media (max-height:460px){:host{--maxcell:22px;--msg:16px}}',
+    ':host{--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
+    '@media (max-height:460px){:host{--msg:16px}}',
     ':host,*{box-sizing:border-box}',
 
     '.fab{position:fixed;bottom:16px;' + (LEFT ? 'left:16px;' : 'right:16px;') +
@@ -348,7 +375,7 @@
     '.close{position:absolute;top:12px;right:14px;width:30px;height:30px;border:0;border-radius:50%;',
     'background:var(--close-bg);color:var(--close-fg);font-size:17px;line-height:1;cursor:pointer}',
     '.close:hover{filter:brightness(.92)}',
-    '.stack{display:flex;flex-direction:column;align-items:center;gap:11px;',
+    '.stack{display:flex;flex-direction:column;align-items:center;gap:8px;',
     'width:var(--cabw)}',
     /* One row, always. Fixed height so revealing the test buttons cannot shift
        the machine down or change its height by a pixel. */
@@ -409,7 +436,7 @@
     '.marquee.litJ .mq,.marquee.litJ img{animation:mqheat .3s ease-in-out 7}',
     '.marquee.litG .mq,.marquee.litG img{animation:mqheat 1.5s ease-in-out 4}',
     '.marquee{display:flex;align-items:center;justify-content:center;gap:13px;',
-    'margin:2px 0 var(--hopgap);padding:var(--mqpad) 22px;border-radius:18px;',
+    'margin:2px 0 var(--hopgap);padding:var(--mqpad) 15px;border-radius:18px;',  /* 22px side padding clipped MASTER CONCEPT once the cabinet narrowed */
     'background:var(--mq);border:1px solid var(--gold-soft);',
     'box-shadow:var(--mq-sh);position:relative}',
     '.marquee::after{content:"";position:absolute;inset:-1px;border-radius:18px;',
@@ -501,13 +528,24 @@
     'pointer-events:none;z-index:3}',
     '.drop{position:absolute;will-change:transform;',
     'filter:drop-shadow(0 4px 9px rgba(0,0,0,.4))}',
+    /* The window is exactly as wide as the three reels. It used to stretch the
+       full cabinet, so whenever the cells shrank for height the reels sat in a
+       band of nothing — worst on a short desktop window, where 218px of reels
+       floated in 318px of glass. */
     '.window{position:relative;display:flex;gap:4px;justify-content:center;',
+    'width:max-content;max-width:100%;margin-left:auto;margin-right:auto;',
     'padding:var(--winpad);border-radius:18px;',
     'background:var(--win);border:2px solid var(--win-br);box-shadow:var(--win-sh)}',
     '.reel{width:var(--cell);height:calc(var(--cell) * ' + ROWS + ');overflow:hidden;',
     'border-radius:12px;background:var(--reel);',
     '-webkit-mask-image:' + MASK + ';mask-image:' + MASK + '}',
-    '.strip{will-change:transform;transition:opacity .45s ease-in .25s}',
+    /* The strip rests TRAIL cells up. Expressing that in CSS rather than as a
+       pixel number measured once means it can never go stale — it re-derives
+       itself whenever --cell changes, so a resize, a font load or a rounding
+       change cannot leave the reels parked between rows showing blank strip.
+       JS only overrides this while a spin is actually running. */
+    '.strip{will-change:transform;transition:opacity .45s ease-in .25s;',
+    'transform:translateY(calc(var(--cell) * -' + TRAIL + '))}',
     '.window.emptied .strip{opacity:0}',
     '.cell{width:var(--cell);height:var(--cell);display:grid;place-items:center}',
     '.cell img{width:calc(var(--cell) * .86);height:calc(var(--cell) * .86);display:block}',
@@ -521,7 +559,11 @@
     '.pip.l{left:2px;border-left:8px solid var(--gold-lit)}',
     '.pip.r{right:2px;border-right:8px solid var(--gold-lit)}',
 
-    '.labels{display:flex;gap:8px;justify-content:center;margin-top:8px}',
+    /* One label per reel, the same width as a reel, so they line up with the
+       thing they name instead of bunching in the middle. */
+    '.labels{display:flex;gap:4px;justify-content:center;width:max-content;',
+    'max-width:100%;margin:8px auto 0}',
+    '.labels span{width:var(--cell);text-align:center}',
     /* These name the three parts of the day, so they must be readable. They were
        on --faint, the tone reserved for near-invisible hints. Also pinned to 84px
        while the cells shrink to 66px on mobile, so they no longer lined up. */
@@ -822,7 +864,12 @@
     /* These must sit after every component rule: they share specificity with the
        .belly / .hopper display declarations, so declared earlier they simply lose
        the cascade and nothing hides. */
-    '@media (max-height:500px){.belly{display:none}}',
+    /* Below here the belly is gone and the hopper follows, which frees a lot of
+       height at once — the main line would keep shrinking the cells for room
+       that is no longer being used. Second line, same shape, steeper. */
+    '@media (max-height:500px){.belly{display:none}',
+    ':host{--maxcell:clamp(18px, calc((100vh - 252px) / 5.2), 88px);',
+    '--maxcell:round(down, clamp(18px, calc((100vh - 252px) / 5.2), 88px), 1px)}}',
     '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
     '.ctl.cog.unlocked{animation:none;border-color:var(--gold-lit);color:var(--gold-lit)}',
@@ -840,7 +887,7 @@
               machine centres in what is left instead of sliding underneath. */
            '.bar{position:fixed;top:0;left:0;right:0;width:auto;height:auto;' +
            'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' +
-           '.scrim{padding-top:76px;padding-bottom:34px}' +
+           '.scrim{padding-top:62px;padding-bottom:22px}' +
            '.copy{display:block}' +
            /* Declared AFTER the rule it overrides — same specificity, so order
               decides, and the hide has to come last or it never applies. */
@@ -960,7 +1007,7 @@
   var lever = $('.lever'), arm = $('.arm'), knob = $('.knob');
   var reels = Array.prototype.slice.call(root.querySelectorAll('.reel'));
   var strips = Array.prototype.slice.call(root.querySelectorAll('.strip'));
-  var TRAIL = 26, STRIP = TRAIL + ROWS + 1, AT = TRAIL + CENTRE, spinning = false;
+  var spinning = false;
 
   /* Cell height comes from CSS (it shrinks on small screens), so measure rather
      than assume — otherwise the reel lands between two rows. */
@@ -2060,12 +2107,17 @@
      back on. */
   function dropCells() {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-    var CELL = cellPx(), first = lastResult ? TRAIL : 0;
+    /* TRAIL is where a strip rests, always — fillIn parks it there and every
+       spin ends there. Deriving it from lastResult meant that on the very first
+       load this animated cells 0-2 while the window was showing 26-28: the
+       load-in never played, and the three cells it left on opacity:0 (fill:
+       backwards) were a trap for anything that later parked the strip at 0. */
+    var CELL = cellPx(), first = TRAIL, running = [];
     strips.forEach(function (strip, col) {
       for (var r = 0; r < ROWS; r++) {
         var el = strip.children[first + r];
         if (!el) continue;
-        el.animate([
+        running.push(el.animate([
           { transform: 'translateY(-' + (CELL * 4.2) + 'px) rotate(-20deg)', opacity: 0 },
           { transform: 'translateY(0) rotate(0)', opacity: 1 }
         ], {
@@ -2073,9 +2125,19 @@
           delay: 300 + col * 90 + (ROWS - 1 - r) * 120,   // left to right, bottom row first
           easing: 'cubic-bezier(.34,1.5,.6,1)',
           fill: 'backwards'
-        });
+        }));
       }
     });
+    /* fill:'backwards' holds the cells at opacity 0 until the animation starts.
+       If the clock never advances — a background tab at load, a throttled or
+       missing Web Animations implementation — that hold is permanent and the
+       window sits empty. Cancel anything still unfinished well past its end;
+       the cells then show their resting style, which is simply visible. */
+    setTimeout(function () {
+      for (var i = 0; i < running.length; i++) {
+        try { if (running[i].playState !== 'finished') running[i].cancel(); } catch (e) {}
+      }
+    }, 2200);
   }
 
   function fillIn() {
@@ -2085,7 +2147,7 @@
     strips.forEach(function (strip) {
       strip.style.transition = 'none';
       strip.innerHTML = cells(STRIP);
-      strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
+      strip.style.transform = '';                 // CSS parks it; see .strip
     });
     dropCells();
   }
@@ -2178,6 +2240,15 @@
 
   function settle(res) {
     spinning = false;
+    /* The spin animated to the same place CSS parks it, so drop the inline
+       value — otherwise it is a stale pixel number until the next pull. */
+    setTimeout(function () {
+      if (spinning) return;
+      for (var i = 0; i < strips.length; i++) {
+        strips[i].style.transition = 'none';
+        strips[i].style.transform = '';
+      }
+    }, 90);
     lastResult = res;
     stopSpinSound();
     lever.classList.remove('busy');
@@ -2899,6 +2970,25 @@
   var wasArmed = false;
   try { wasArmed = sessionStorage.getItem('luckymaco:test') === '1'; } catch (e) {}
   if (CFG.changer || wasArmed) setTest(true);
+
+  /* The strip is parked at translateY(-TRAIL * cell), a pixel offset computed
+     from the cell size at the time. Resize the window and the cell changes but
+     the offset does not, so the reels slide off their row and the window shows
+     blank strip. Re-park them — and re-heap the hopper, whose layout is also in
+     pixels. Debounced, because a drag-resize fires this continuously. */
+  var reflowTimer = null;
+  window.addEventListener('resize', function () {
+    if (reflowTimer) clearTimeout(reflowTimer);
+    reflowTimer = setTimeout(function () {
+      reflowTimer = null;
+      if (spinning || !filled) return;
+      for (var i = 0; i < strips.length; i++) {
+        strips[i].style.transition = 'none';
+        strips[i].style.transform = '';           // hand it back to CSS
+      }
+      if (hstock.children.length) fillHopper();     // its heap is in pixels too
+    }, 180);
+  });
 
   /* Tap anywhere on the cabinet to sweep the pile away early — it otherwise sits
      until the next pull, which is deliberate but sometimes in the way. */
