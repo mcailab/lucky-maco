@@ -780,13 +780,40 @@
       if (stroke) { c.strokeStyle = stroke; c.lineWidth = 2 * SC; c.stroke(); }
       return r;
     };
-    var sprite = function (img) {
-      if (!img.complete || !img.naturalWidth) return;
-      var r = rel(img);
+    var sprite = function (img, cellIdx, reelIdx) {
+      if (!img || !img.complete || !img.naturalWidth) return;
       var w = img.offsetWidth * SC, h = img.offsetHeight * SC;
-      c.save(); c.translate(r.cx, r.cy); c.rotate(angleOf(img));
+      var cx, cy;
+      if (cellIdx == null) {
+        var r = rel(img);
+        cx = r.cx; cy = r.cy;
+      } else {
+        /* Derive the slot from the reel's own box, so a strip whose transform has
+           not been composited still lands in the right row. */
+        var rr = reels[reelIdx].getBoundingClientRect();
+        var cell = cellPx();
+        cx = (rr.left + rr.width / 2 - box.left) * SC;
+        cy = (rr.top + (cellIdx - (lastResult ? TRAIL : 0) + 0.5) * cell - box.top) * SC;
+      }
+      c.save(); c.translate(cx, cy); c.rotate(angleOf(img));
       c.drawImage(img, -w / 2, -h / 2, w, h); c.restore();
     };
+    /* Width of the text itself, not of the box around it. Fitting a label to its
+       84px slot let the words fill the whole slot and touch their neighbours. */
+    var inkOf = function (el) {
+      var t = null, n;
+      for (n = 0; n < el.childNodes.length; n++) {
+        if (el.childNodes[n].nodeType === 3 && el.childNodes[n].textContent.trim()) {
+          t = el.childNodes[n];
+        }
+      }
+      if (!t) return null;
+      var rg = document.createRange(); rg.selectNodeContents(t);
+      var r = rg.getBoundingClientRect();
+      return { cx: (r.left + r.width / 2 - box.left) * SC,
+               cy: (r.top + r.height / 2 - box.top) * SC, w: r.width * SC };
+    };
+
     /* Canvas resolves the font stack differently from the DOM, so text drawn at
        the same px size comes out wider and spills over its neighbours. Measure
        and shrink to the width the browser actually gave it. */
@@ -828,10 +855,15 @@
          '600 ' + (9.5 * SC).toFixed(0) + 'px', mut, sb.w);
     c.restore();
 
-    /* hopper, then whatever is in it */
-    panel(hopper, dark ? 'rgba(255,255,255,.05)' : 'rgba(27,42,91,.05)', line, 12);
+    /* hopper, then whatever is in it — clipped to the tray, the way .hstock's
+       overflow:hidden clips it on screen. Without this the heap spills out of
+       the box, since the frame is a window onto a wider pile by design. */
+    var hr = panel(hopper, dark ? 'rgba(255,255,255,.05)' : 'rgba(27,42,91,.05)', line, 12);
     var i, kids = hstock.children;
+    c.save();
+    rrect(c, hr.x, hr.y, hr.w, hr.h, 12 * SC); c.clip();
     for (i = 0; i < kids.length; i++) sprite(kids[i]);
+    c.restore();
 
     /* reel window: the pile if there is one, otherwise the grid */
     var win = $('.window');
@@ -847,25 +879,30 @@
       var q = el.getBoundingClientRect();
       return q.bottom > wbox.top - 4 && q.top < wbox.bottom + 4;
     };
-    if (dumpBox.children.length) {
-      for (i = 0; i < dumpBox.children.length; i++) {
-        if (inWindow(dumpBox.children[i])) sprite(dumpBox.children[i]);
+    /* Always the reels, never the pile. The card has to say WHAT you got, and a
+       heap of 28 tumbled Macoji cannot show that a jackpot was three Fires — the
+       result is exactly the thing it buries. So the card is the machine at the
+       instant the reels stopped: winning row on the payline, hopper still full. */
+    /* Pick the cells by index rather than by where they happen to be on screen.
+       After a spin the window shows TRAIL..TRAIL+ROWS-1 by construction, so this
+       is exact and does not depend on the transform having been composited yet.
+       Before any spin the strip is untransformed, so the first rows are showing. */
+    var first = lastResult ? TRAIL : 0;
+    for (i = 0; i < strips.length; i++) {
+      for (var k = 0; k < ROWS; k++) {
+        var cellEl = strips[i].children[first + k];
+        if (cellEl) sprite(cellEl.querySelector('img'), first + k, i);
       }
-    } else {
-      for (i = 0; i < strips.length; i++) {
-        var cim = strips[i].querySelectorAll('img');
-        for (var k = 0; k < cim.length; k++) if (inWindow(cim[k])) sprite(cim[k]);
-      }
-      var bd = rel($('.band'));
-      c.strokeStyle = lit; c.lineWidth = 2 * SC;
-      rrect(c, bd.x, bd.y, bd.w, bd.h, 10 * SC); c.stroke();
     }
+    var bd = rel($('.band'));
+    c.strokeStyle = lit; c.lineWidth = 2.5 * SC;
+    rrect(c, bd.x, bd.y, bd.w, bd.h, 10 * SC); c.stroke();
     c.restore();
 
     /* labels */
     var labs = root.querySelectorAll('.labels span');
     for (i = 0; i < labs.length; i++) {
-      var lr = rel(labs[i]);
+      var lr = inkOf(labs[i]) || rel(labs[i]);
       c.save(); c.letterSpacing = (0.8 * SC).toFixed(1) + 'px';
       text(labs[i].textContent.toUpperCase(), lr.cx, lr.cy,
            '700 ' + (10.5 * SC).toFixed(0) + 'px', mut, lr.w);
@@ -879,19 +916,12 @@
       for (i = 0; i < imgs.length; i++) sprite(imgs[i]);
       /* Range over the text node gives exactly where the browser put the words,
          icons and all — no reconstructing the flex layout by hand. */
-      var tn = null, nodes = b.childNodes;
-      for (i = 0; i < nodes.length; i++) {
-        if (nodes[i].nodeType === 3 && nodes[i].textContent.trim()) tn = nodes[i];
-      }
       var size = parseFloat(getComputedStyle(b).fontSize);
       var win2 = /jackpot|win/.test(msg.className) ? gold : txt;
-      if (tn) {
-        var rg = document.createRange(); rg.selectNodeContents(tn);
-        var tr = rg.getBoundingClientRect();
-        text(tn.textContent.trim(),
-             (tr.left + tr.width / 2 - box.left) * SC,
-             (tr.top + tr.height / 2 - box.top) * SC,
-             '800 ' + (size * SC).toFixed(0) + 'px', win2, tr.width * SC);
+      var ink = inkOf(b);
+      if (ink) {
+        text(b.textContent.trim(), ink.cx, ink.cy,
+             '800 ' + (size * SC).toFixed(0) + 'px', win2, ink.w);
       }
     }
     if (sm) {
@@ -907,10 +937,22 @@
     return cv;
   }
 
+  /* Written for whoever receives it, not scraped off the screen. The machine tells
+     the player "all of Thursday is yours"; a shared message has to say "mine",
+     name the game, and invite them to play. */
   function shareText() {
-    var b = msg.querySelector('b'), sm = msg.querySelector('small');
-    return (b ? b.textContent.trim() : 'Lucky Maco') +
-           (sm ? ' \u2014 ' + sm.textContent.trim() : '') + '\n' + EMBED_HOME;
+    var r = lastResult, day = today(), tail = '\nYour turn \u2192 ' + EMBED_HOME;
+    if (!r) return 'Lucky Maco \u2014 a little Macoji slot machine.' + tail;
+    var f = label(r.reels[0]);
+    if (r.pattern === 'TRIPLE') {
+      return 'JACKPOT on Lucky Maco \u2014 triple ' + f + '! All of ' + day + ' is mine.' + tail;
+    }
+    if (r.pattern === 'PAIR') {
+      var dbl = label(r.reels[0] === r.reels[1] ? r.reels[0] : r.reels[2]);
+      return 'Twins on Lucky Maco \u2014 double ' + dbl + '. Not a bad ' + day + '.' + tail;
+    }
+    return 'My ' + day + ' on Lucky Maco: ' + f + ' \u2192 ' +
+           label(r.reels[1]) + ' \u2192 ' + label(r.reels[2]) + '.' + tail;
   }
 
   /* navigator.share only works while the click's user activation is still live.
