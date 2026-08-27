@@ -163,18 +163,28 @@
   }
   /* force: 'TRIPLE' | 'PAIR' | 'ALLDIFF' — test mode and the public API use it to
      pick an outcome directly. Left undefined, the odds decide. */
-  /* Luck is a dial, not a switch. At 0 the machine runs its own odds exactly.
-     Filling it slides the chance of any win from 15% up to certain, and slides
-     the split inside a win from the natural 1-in-3 jackpot up to always. Both
-     ends are the honest ones: empty is the real game, full is a guaranteed
-     jackpot, and everything between is a machine that is merely kind. */
-  var luckLevel = 0;
+  /* Luck multiplies the odds you set, and nothing else. Five levels, x1 to x5:
+     at level 0 the machine runs exactly what the sheet says, at level 4 both
+     Jackpot and Twins are five times as likely and the ratio between them is
+     untouched. Neither can ever fall as luck rises, which is the whole point —
+     an earlier version slid the jackpot share up and Twins went DOWN at high
+     luck, which is not what luck means.
+
+     The multiplier is capped so the two can never sum past 100%: with a base of
+     5 + 10 the cap is x6.67, so x5 fits; set the base high enough and the top
+     of the bar simply stops short of x5, which is the honest outcome rather
+     than a broken one. */
+  var LUCK_STEPS = 5;                       // 0, 1, 2, 3, 4  ->  x1 .. x5
+  var luckLevel = 0;                        // 0 .. LUCK_STEPS - 1
+  function luckMult() {
+    var base = CFG.triple + CFG.twins;
+    var want = 1 + luckLevel;               // level 0 is x1
+    var cap = base > 0 ? 1 / base : want;
+    return Math.min(want, cap);
+  }
   function odds() {
-    var f = luckLevel, base = CFG.triple + CFG.twins;
-    var win = base + (1 - base) * f;
-    var jackShare = (base ? CFG.triple / base : 1 / 3);
-    jackShare = jackShare + (1 - jackShare) * f;
-    return { triple: win * jackShare, twins: win * (1 - jackShare) };
+    var k = luckMult();
+    return { triple: CFG.triple * k, twins: CFG.twins * k };
   }
 
   function draw(force) {
@@ -656,11 +666,18 @@
     'transition:width .22s cubic-bezier(.4,1.3,.5,1)}',
     /* ten notches, so a tap lands somewhere repeatable */
     '.ticks{position:absolute;inset:0;pointer-events:none;',
-    'background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),',
-    'rgba(0,0,0,.35) calc(10% - 1px) 10%)}',
-    '.dface{width:15px;height:15px;flex:none;display:block;',
-    'filter:grayscale(1) brightness(1.4);transition:filter .3s,transform .3s}',
-    '.luck.on .dface{filter:none}',
+    'background:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),',
+    'rgba(0,0,0,.35) calc(25% - 1px) 25%)}',
+    /* The marker on the right IS the readout — it wakes up as the bar fills and
+       is fully lit at the top. No number: the bar already is one. */
+    '.dface{width:17px;height:17px;flex:none;display:block;',
+    'filter:grayscale(1) brightness(1.4);transform:scale(.88);',
+    'transition:filter .3s,transform .3s}',
+    '.luck.on .dface{filter:grayscale(.5);transform:scale(.96)}',
+    '.luck.hot .dface{filter:none;transform:scale(1.1);',
+    'animation:facehot 1.4s ease-in-out infinite}',
+    '@keyframes facehot{0%,100%{filter:none}',
+    '50%{filter:drop-shadow(0 0 6px var(--gold-lit))}}',
     /* the window wears the same colour, so the machine shows what is loaded */
     '.window.boost{border-color:var(--gold-lit);',
     'box-shadow:var(--win-sh),0 0 20px -3px var(--glow2)}',
@@ -725,6 +742,13 @@
     'font-size:17px;color:var(--gold);letter-spacing:.01em;white-space:nowrap}',
     '.toast b svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;',
     'stroke-linecap:round;stroke-linejoin:round;flex:none}',
+    /* Maco himself leans into the card when he is the one talking */
+    '.toast .tmaco{width:38px;height:38px;flex:none;display:block;',
+    'filter:drop-shadow(0 5px 12px rgba(240,130,30,.5))}',
+    '.toast.on .tmaco{animation:tmaco .7s cubic-bezier(.34,1.5,.5,1)}',
+    '@keyframes tmaco{0%{transform:translateY(18px) scale(.4) rotate(-14deg)}',
+    '60%{transform:translateY(-3px) scale(1.1) rotate(5deg)}',
+    '100%{transform:none}}',
     '.toast small{display:block;font-size:13px;color:var(--mut);margin-top:6px;',
     'white-space:nowrap}',
     /* mode badge at the head of the settings sheet */
@@ -1946,7 +1970,7 @@
 
   /* ── spin ─────────────────────────────────────────────────────────────── */
   function spin(force) {
-    if (spinning) return;
+    if (spinning || granting) return;
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
@@ -2041,6 +2065,20 @@
     /* A win that completes the meter is a Wildfire, not a Twins that happens to
        be followed by one. Feeding the meter first means the smaller message is
        never written, so it cannot be left on screen afterwards. */
+    /* Count the run before anything else claims the turn: a win spends the luck
+       and re-arms the ways to get it back, a loss brings the third dry pull that
+       much closer. */
+    if (res.pattern === 'TRIPLE' || res.pattern === 'PAIR') {
+      dryRun = 0;
+      if (LUCK_RESETS_ON_WIN && !unlocked && luckLevel > 0) setLuck(0);
+      if (!unlocked) rearm();
+    } else if (++dryRun >= 3) {
+      /* after the result has landed, so he is answering it rather than talking
+         over it */
+      setTimeout(function () {
+        if (grantLuck('Here, have some of mine', 'streak')) dryRun = 0;
+      }, 900);
+    }
     if ((res.pattern === 'TRIPLE' || res.pattern === 'PAIR') && feedMeter(res)) return;
     if (res.pattern === 'TRIPLE') {
       msg.className = 'msg jackpot';
@@ -2307,7 +2345,7 @@
         /* With the Luck bar up, the three rows above are no longer what the
            machine is actually doing — say so rather than quietly lying. */
         (luckLevel > 0
-          ? '<tr><td>Luck bar at ' + Math.round(luckLevel * 100) + '%</td><td>' +
+          ? '<tr><td>Luck &times;' + (1 + luckLevel) + '</td><td>' +
               pct(odds().triple) + ' / ' + pct(odds().twins) + '</td></tr>'
           : '') +
 
@@ -2494,7 +2532,8 @@
        telling you something the interface already shows. */
     $('.cog').classList.toggle('unlocked', on);
     luck.classList.toggle('locked', !on);       // the switch is there either way
-    if (!on) setLuck(0, true);                  // but never left leaning
+    setLuck(on ? TOP : 0, true);                // unlocked arrives charged, locked empty
+    if (!on) rearm();
     toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
              : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
     if (on) {
@@ -2538,28 +2577,34 @@
     }
   });
 
-  /* The bar stays where it is put — a setting, not a shot. Ten notches, so a
-     tap lands somewhere you can name and come back to. */
+  /* The bar stays where it is put — a setting, not a shot. Five notches, and
+     the marker on the right is the readout, so there is no number to read. */
   var luck = $('.luck'), track = $('.track'), fillEl = $('.fill');
-  function setLuck(f, quiet) {
-    f = Math.max(0, Math.min(1, Math.round(f * 10) / 10));
-    if (f === luckLevel && quiet) return;
+  var TOP = LUCK_STEPS - 1;                   // level 4 is the top of the bar
+  function setLuck(lv, quiet) {
+    lv = Math.max(0, Math.min(TOP, Math.round(lv)));
+    track.setAttribute('aria-valuetext', 'x' + (1 + lv));
+    if (lv === luckLevel && quiet) return;
     var was = luckLevel;
-    luckLevel = f;
+    luckLevel = lv;
+    var f = lv / TOP;
     fillEl.style.width = (f * 100) + '%';
     fillEl.style.setProperty('--luckinv', f ? (1 / f) : 1);   // keep the ramp full-length
-    luck.classList.toggle('on', f > 0);
-    luck.classList.toggle('twins', f > 0 && f < 0.75);
-    luck.classList.toggle('jack', f >= 0.75);
+    luck.classList.toggle('on', lv > 0);
+    luck.classList.toggle('hot', lv === TOP);
+    luck.classList.toggle('twins', lv > 0 && lv < TOP);
+    luck.classList.toggle('jack', lv === TOP);
     var w = $('.window');
-    w.classList.toggle('boost', f > 0 && f < 0.75);
-    w.classList.toggle('boostjack', f >= 0.75);
-    track.setAttribute('aria-valuetext', Math.round(f * 100) + '%');
-    if (!quiet && f !== was) tone(500 + f * 700, 0.05, 'square', 0.07);
+    w.classList.toggle('boost', lv > 0 && lv < TOP);
+    w.classList.toggle('boostjack', lv === TOP);
+    track.setAttribute('aria-valuetext', 'x' + (1 + lv));
+    if (!quiet && lv !== was) tone(500 + f * 700, 0.05, 'square', 0.07);
   }
+  setLuck(0, true);                           // stamp the marker's starting state
+
   function luckFromX(x) {
     var b = track.getBoundingClientRect();
-    return b.width ? (x - b.left) / b.width : 0;
+    return b.width ? ((x - b.left) / b.width) * TOP : 0;
   }
   var sliding = false;
   track.addEventListener('pointerdown', function (e) {
@@ -2579,9 +2624,39 @@
     try { track.releasePointerCapture(e.pointerId); } catch (err) {}
   });
   track.addEventListener('click', function (e) { e.stopPropagation(); });
+
+  /* ── how a player earns luck ───────────────────────────────────────────
+     Each way pays once, so a player tops out at level 3 of 4 — the last notch
+     stays a Game Changer thing. A win spends the whole lot and re-arms every
+     way, which is what keeps the bar meaningful: it is a comeback, not a
+     ratchet that leaves everyone permanently lucky after five minutes. */
+  var LUCK_RESETS_ON_WIN = true;
+  var earned = { streak: false, share: false };
+  var dryRun = 0, granting = false;
+  function rearm() { earned.streak = false; earned.share = false; dryRun = 0; }
+
+  /* Every gain announces itself. A bar that creeps up while you are looking at
+     the reels is a bar nobody notices — Maco says it out loud, and the lever is
+     held shut so the pull cannot land in the middle of it. */
+  function grantLuck(line, why) {
+    if (unlocked || granting || luckLevel >= TOP) return false;
+    if (earned[why]) return false;
+    earned[why] = true;
+    granting = true;
+    lever.classList.add('busy');
+    toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
+          '<small>Luck &times;' + (2 + luckLevel) + '</small>', 2300);
+    sWin();
+    setTimeout(function () { setLuck(luckLevel + 1); }, 620);   // after he speaks
+    setTimeout(function () {
+      granting = false;
+      lever.classList.remove('busy');
+    }, 2400);
+    return true;
+  }
   track.addEventListener('keydown', function (e) {
-    var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 0.1
-          : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -0.1 : 0;
+    var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1
+          : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
     if (!d || !unlocked) return;
     e.preventDefault(); e.stopPropagation();
     setLuck(luckLevel + d);
@@ -2607,7 +2682,11 @@
   });
 
   $('.share').addEventListener('click', function (e) {
-    e.stopPropagation(); shareResult();
+    e.stopPropagation();
+    shareResult();
+    /* On the click, not the outcome — sharing can be cancelled, and on a desktop
+       it falls through to saving the card. It pays once either way. */
+    setTimeout(function () { grantLuck('Thanks for sharing me', 'share'); }, 500);
   });
 
   if (PAGE) {
