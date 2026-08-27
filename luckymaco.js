@@ -650,12 +650,12 @@
     '.luck{display:flex;align-items:center;gap:9px;margin-top:12px;',
     'padding:5px 7px;border-radius:11px;background:var(--mount);',
     'border:1px solid var(--cab-br);transition:opacity .3s}',
-    '.luck.locked{opacity:.42;pointer-events:none}',
+    /* Not disabled — the bar fills as a player earns luck, and only DRAGGING it
+       belongs to Game Changer. Dimming it and padlocking it said the opposite. */
+    '.luck.locked{pointer-events:none}',
     '.dname{display:flex;align-items:center;gap:4px;flex:none;',
     'font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;',
     'color:var(--mut);transition:color .25s}',
-    '.dlock{width:9px;height:9px;stroke:currentColor;fill:none;stroke-width:2.4;display:none}',
-    '.luck.locked .dlock{display:block}',
     '.luck.twins .dname{color:var(--gold)}',
     '.luck.jack .dname{color:#FF8A8A}',
     '.track{position:relative;flex:1;height:14px;border-radius:8px;cursor:pointer;',
@@ -882,9 +882,7 @@
           '<path d="M8.3 10.8 15.7 6.7M8.3 13.2l7.4 4.1"/></svg>' +
           '<span class="slabel">Share</span></button></div>' +
         '<div class="luck locked">' +
-          '<span class="dname">Luck<svg class="dlock" viewBox="0 0 24 24">' +
-            '<rect x="4" y="11" width="16" height="10" rx="2"/>' +
-            '<path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>' +
+          '<span class="dname">Luck</span>' +
           '<div class="track" role="slider" aria-label="Luck" tabindex="0">' +
             '<div class="fill"></div><div class="ticks"></div></div>' +
           '<img class="dface" src="' + FACE + '" alt="">' +
@@ -1375,7 +1373,7 @@
       if (err && err.name === 'AbortError') return;      // they just backed out
       if (file) saveCard(file);
       else toast('<b>Could not share</b><small>' + (err.message || err.name || '') +
-                 '</small>', 2600);
+                 '</small>', 3200);
     };
     if (file) {
       var p;
@@ -1397,7 +1395,7 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     try { navigator.clipboard && navigator.clipboard.writeText(shareText()); } catch (e) {}
-    toast('<b>' + LOCK_OPEN + 'Card saved</b><small>and the text is on your clipboard</small>', 2000);
+    toast('<b>' + LOCK_OPEN + 'Card saved</b><small>and the text is on your clipboard</small>', 2800);
   }
 
   /* ── sound ────────────────────────────────────────────────────────────────
@@ -2533,8 +2531,7 @@
     fitLine();
     $('.share').classList.add('off');
     sharePitch();
-    toast('<b><img class="tmaco" src="' + BODY + '" alt="">Back to the start</b>' +
-          '<small>Everything reset</small>', 1800);
+    toast('<b><img class="tmaco" src="' + BODY + '" alt="">All Reset</b>', 2400);
   }
 
   var tog = $('.tog');
@@ -2605,7 +2602,7 @@
     flashTimer = setTimeout(function () {
       flashTimer = null;
       t.classList.remove('on');
-    }, ms || 1800);
+    }, ms || 2400);
   }
 
   function setTest(on) {
@@ -2620,7 +2617,7 @@
     setLuck(on ? TOP : 0, true);                // unlocked arrives charged, locked empty
     if (!on) rearm(); else sharePitch();        // Game Changer has nothing to earn
     toast(on ? '<b>' + LOCK_OPEN + 'You&rsquo;re the Game Changer</b>'
-             : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2000 : 1600);
+             : '<b>' + LOCK_SHUT + 'Machine Settings Locked</b>', on ? 2800 : 2200);
     if (on) {
       tone(880, 0.09, 'square', 0.10);
       setTimeout(function () { tone(1320, 0.12, 'square', 0.10); }, 90);
@@ -2739,13 +2736,13 @@
     granting = true;
     lever.classList.add('busy');
     toast('<b><img class="tmaco" src="' + BODY + '" alt="">' + line + '</b>' +
-          '<small>Luck Boost</small>', 2300);
+          '<small>Luck Boost</small>', 3400);
     sWin();
     setTimeout(function () { setLuck(luckLevel + 1); sharePitch(); }, 620);
     setTimeout(function () {
       granting = false;
       lever.classList.remove('busy');
-    }, 2400);
+    }, 3500);                                 // the lever waits out the card
     return true;
   }
   sharePitch();                               // the button's opening offer
