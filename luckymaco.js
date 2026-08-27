@@ -288,27 +288,27 @@
     '@media (min-width:620px) and (min-height:880px){',
     ':host{--cabw:440px;--maxcell:104px;--hop:80px;--mqpad:17px;--msg:58px;',
 '--sharepad:9px;--gap:18px;--belly:60px}}',
-    '@media (max-height:800px){:host{--maxcell:70px;--hop:62px;--mqpad:12px;',
+    '@media (max-height:842px){:host{--maxcell:70px;--hop:62px;--mqpad:12px;',
 '--msg:48px;--sharepad:7px;--gap:14px;--belly:54px}}',
-    '@media (max-height:730px){:host{--maxcell:60px;--hop:54px;--mqpad:10px;',
+    '@media (max-height:772px){:host{--maxcell:60px;--hop:54px;--mqpad:10px;',
 '--msg:44px;--sharepad:6px;--gap:12px;--belly:48px}}',
-    '@media (max-height:665px){:host{--maxcell:52px;--hop:46px;--mqpad:9px;',
+    '@media (max-height:707px){:host{--maxcell:52px;--hop:46px;--mqpad:9px;',
 '--msg:38px;--sharepad:5px;--gap:10px;--belly:42px}}',
-    '@media (max-height:605px){:host{--maxcell:44px;--hop:38px;--mqpad:7px;',
+    '@media (max-height:647px){:host{--maxcell:44px;--hop:38px;--mqpad:7px;',
 '--msg:34px;--sharepad:4px;--gap:8px}}',
-    '@media (max-height:545px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
+    '@media (max-height:587px){:host{--maxcell:40px;--hop:34px;--mqpad:6px;',
     '--msg:30px;--sharepad:4px;--gap:8px}}',
-    '@media (max-height:510px){:host{--maxcell:32px;--hop:28px;--mqpad:5px;',
+    '@media (max-height:552px){:host{--maxcell:32px;--hop:28px;--mqpad:5px;',
     '--msg:26px;--sharepad:3px;--gap:6px}}',
-    '@media (max-height:470px){:host{--maxcell:26px;--hop:22px;--mqpad:4px;',
+    '@media (max-height:512px){:host{--maxcell:26px;--hop:22px;--mqpad:4px;',
     '--msg:22px;--sharepad:3px;--gap:5px}}',
     /* A phone on its side has no room for a portrait cabinet. Drop the hopper and
        the time-of-day labels rather than clipping the reels, which are the part
        you actually need. */
-    '@media (max-height:440px){.marquee img{width:24px;height:24px}',
+    '@media (max-height:482px){.marquee img{width:24px;height:24px}',
     '.mq-name{font-size:16px}',
     ':host{--maxcell:28px;--msg:19px;--gap:4px;--mqpad:4px;--sharepad:3px}}',
-    '@media (max-height:380px){:host{--maxcell:22px;--msg:16px}}',
+    '@media (max-height:422px){:host{--maxcell:22px;--msg:16px}}',
     ':host,*{box-sizing:border-box}',
 
     '.fab{position:fixed;bottom:16px;' + (LEFT ? 'left:16px;' : 'right:16px;') +
@@ -736,7 +736,10 @@
     'stroke-linecap:round;stroke-linejoin:round;flex:none}',
     '.modebar.locked{color:var(--mut)}',
     '.modebar.open{color:var(--gold)}',
-    '.copy{position:fixed;left:0;right:0;bottom:11px;text-align:center;font-size:10px;',
+    /* Under the machine, in the flow, not floating over it. Fixed to the bottom
+       of the viewport it landed on top of the deck plate as soon as the cabinet
+       grew tall enough to reach it. */
+    '.copy{margin-top:2px;text-align:center;font-size:10px;',
     'letter-spacing:.1em;color:var(--faint);pointer-events:none;display:none}',
     /* Belly glass: on a real cabinet this is the lit lower panel carrying the
        game's character art and its payout ladder. Ours carries Maco and the
@@ -776,8 +779,8 @@
     /* These must sit after every component rule: they share specificity with the
        .belly / .hopper display declarations, so declared earlier they simply lose
        the cascade and nothing hides. */
-    '@media (max-height:605px){.belly{display:none}}',
-    '@media (max-height:440px){.hopper,.labels,.mq-sub,.belly{display:none}}',
+    '@media (max-height:647px){.belly{display:none}}',
+    '@media (max-height:482px){.hopper,.labels,.mq-sub,.belly{display:none}}',
     '@media (prefers-reduced-motion:reduce){.fab img,.marquee,.bulb,.mq-name{animation:none}',
     '.ctl.cog.unlocked{animation:none;border-color:var(--gold-lit);color:var(--gold-lit)}',
     '.mqlamp,.marquee.litJ .mq,.marquee.litG .mq,.marquee.litJ img,',
@@ -795,9 +798,11 @@
            '.bar{position:fixed;top:0;left:0;right:0;width:auto;height:auto;' +
            'flex:none;padding:13px 16px;z-index:2147483002;pointer-events:auto}' +
            '.scrim{padding-top:76px;padding-bottom:34px}' +
-           '@media (max-height:440px){.scrim{padding-top:64px;padding-bottom:20px}' +
-           '.copy{display:none}}' +
-           '.copy{display:block}' : ''
+           '.copy{display:block}' +
+           /* Declared AFTER the rule it overrides — same specificity, so order
+              decides, and the hide has to come last or it never applies. */
+           '@media (max-height:482px){.scrim{padding-top:64px;padding-bottom:20px}' +
+           '.copy,.luck{display:none}}' : ''
   ].join('');
 
   root.innerHTML =
@@ -854,10 +859,10 @@
           '<button class="shut" aria-label="Close settings">&#10005;</button>' +
           '<div class="sbody"></div></div>' +
         '<div class="toast"><div class="card"></div></div>' +
-        '<div class="copy">&copy; 2026 Lucky Maco</div>' +
         '<div class="lever"><div class="rail"></div><div class="mount"></div>' +
           '<div class="arm"><div class="knob"></div></div></div>' +
       '</div>' +
+      '<div class="copy">&copy; 2026 Lucky Maco</div>' +
       '</div>' +
     '</div>';
 
