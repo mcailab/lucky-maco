@@ -426,6 +426,46 @@
     '@keyframes mqlampJ{0%,100%{opacity:.18}50%{opacity:1}}',
     '@keyframes mqlampG{0%{opacity:0}8%{opacity:1}20%{opacity:.62}30%{opacity:1}',
     '86%{opacity:.9}100%{opacity:0}}',
+    /* ── the machine's mood ────────────────────────────────────────────
+       The top glass says it from across the room. Uneasy is a red wash with the
+       bulbs slowed and dimmed — the machine visibly unwell. Charged is the
+       opposite: white-gold, bulbs racing. Both sit on the same lamp layer the
+       celebrations use, so they can never be showing at once. */
+    '.mqmood{position:absolute;inset:0;border-radius:18px;pointer-events:none;',
+    'z-index:0;opacity:0;transition:opacity .6s}',
+    '.marquee.uneasy .mqmood{opacity:1;',
+    'background:radial-gradient(120% 165% at 50% 118%,#C4322B,transparent 64%),',
+    'linear-gradient(180deg,rgba(196,50,43,.24),rgba(120,20,18,.42));',
+    'animation:moodbreath 1.5s ease-in-out infinite}',
+    '.marquee.charged .mqmood{opacity:1;',
+    'background:radial-gradient(120% 165% at 50% 118%,#FFF3CE,transparent 66%),',
+    'linear-gradient(180deg,rgba(255,241,205,.50),rgba(255,190,60,.60));',
+    'animation:moodbreath .5s ease-in-out infinite}',
+    '@keyframes moodbreath{0%,100%{filter:brightness(.85)}50%{filter:brightness(1.2)}}',
+    '.marquee.uneasy .bulb{animation-duration:5s;opacity:.12}',
+    '.marquee.uneasy .mglow::before{animation-duration:9s;filter:saturate(.2)}',
+    '.marquee.uneasy .mq-name{animation:none;-webkit-text-fill-color:#D8A99B}',
+    '.marquee.charged .bulb{animation:flash .18s steps(1) infinite}',
+    '.marquee.charged .mglow::before{animation-duration:.6s}',
+    /* the lever looks unusable while the machine is unhappy */
+    '.lever.cold .knob{filter:grayscale(.75) brightness(.7)}',
+    '.lever.cold .arm{filter:brightness(.8)}',
+    /* the Macoji that is about to fall — shaking is bad, bouncing is good, and
+       they are deliberately nothing like each other */
+    '@keyframes jitter{0%,100%{transform:translate(0,0) rotate(0)}',
+    '20%{transform:translate(-2.5px,1px) rotate(-6deg)}',
+    '40%{transform:translate(2.5px,-1px) rotate(6deg)}',
+    '60%{transform:translate(-2px,1.5px) rotate(-4deg)}',
+    '80%{transform:translate(2px,-1.5px) rotate(4deg)}}',
+    '.cell.jitter img{animation:jitter .16s linear infinite;',
+    'filter:drop-shadow(0 0 7px rgba(228,87,79,.75))}',
+    '.cell.jitter.soft img{animation-duration:.3s;transform:scale(.98)}',
+    '@keyframes bouncey{0%,100%{transform:translateY(0) scale(1)}',
+    '45%{transform:translateY(-16%) scale(1.06)}}',
+    '.cell.bouncey img{animation:bouncey .5s ease-in-out infinite;',
+    'filter:drop-shadow(0 0 10px var(--gold-lit))}',
+    '@media (prefers-reduced-motion:reduce){.cell.jitter img,.cell.bouncey img,',
+    '.marquee.uneasy .mqmood,.marquee.charged .mqmood{animation:none}}',
     '.marquee.lit1 .mqlamp{animation:mqlamp1 .9s ease-out}',       /* tapping the mark */
     '.marquee.lit2 .mqlamp{animation:mqlamp2 1.15s ease-in-out}',  /* twins */
     '.marquee.litJ .mqlamp{animation:mqlampJ .3s ease-in-out 7}',  /* jackpot */
@@ -775,6 +815,11 @@
     '62%{transform:translate(4px,-2px) rotate(.4deg)}',
     '82%{transform:translate(-2px,1px) rotate(-.2deg)}}',
     '.cab.jackpot{animation:shake .6s ease-in-out}',
+    /* A judder, not a celebration: shorter, tighter, and it stops dead. */
+    '@keyframes judder{0%,100%{transform:translate(0,0)}',
+    '20%{transform:translate(-4px,2px)}45%{transform:translate(4px,-2px)}',
+    '70%{transform:translate(-2px,1px)}}',
+    '.cab.judder{animation:judder .3s linear 2}',
     /* Small win stays inside the reel window: the payline lights and the two
        matching Macoji wiggle in place. No cabinet movement, nothing falls. */
     '@keyframes wiggle{0%,100%{transform:scale(1) rotate(0)}',
@@ -925,6 +970,7 @@
         '<button class="close" aria-label="Close">&#10005;</button>' +
         '<div class="marquee">' +
           '<div class="mqlamp"></div>' +
+          '<div class="mqmood"></div>' +
           '<div class="mglow"></div>' +
           '<img src="' + LOGO + '" alt="Master Concept">' +
           '<div class="mq"><span class="mq-name">Lucky Maco</span>' +
@@ -1602,6 +1648,25 @@
     chime([392, 523, 784], 60, 0.24, 0.07, 'triangle');   // and back up
     noise(0.18, 0.04, 400, 2, 2200, 0.28);
   };
+  /* The machine getting uneasy: a low uneven grumble with a rattle over it.
+     Deliberately unmusical — it should read as something loose, not a cue. */
+  function sUneasy() {
+    noise(0.9, 0.05, 190, 1.6, 120);
+    tone(78, 0.9, 'sawtooth', 0.035, 62);
+    for (var i = 0; i < 9; i++) noise(0.014, 0.05, 1100 + Math.random() * 700, 9, 0, i * 0.1);
+  }
+  /* Charged: the same idea an octave up and in tune — clearly a good thing. */
+  function sCharged() {
+    chime([784, 988, 1175, 1568], 70, 0.3, 0.055, 'sine');
+    noise(0.5, 0.04, 900, 2, 3200);
+  }
+  /* And one shaking itself loose: a snap, then something falling away. */
+  function sShakeLoose() {
+    noise(0.05, 0.34, 700, 4, 200);
+    tone(200, 0.5, 'sine', 0.11, 60);
+    for (var i = 0; i < 5; i++) noise(0.03, 0.09, 600 - i * 90, 4, 0, 0.1 + i * 0.07);
+  }
+
   /* ── the LUCKY MACO release ────────────────────────────────────────────
      Six seconds had one sound in it. Each beat gets its own now, so the ear
      follows the same story the eye does. */
@@ -2201,6 +2266,103 @@
     dropCells();
   }
 
+  /* ── the machine's mood ───────────────────────────────────────────────────
+     A slot machine that only ever gives is a slot machine with no tension. This
+     is the only way to lose a lamp, and it is built so that losing one is always
+     something you chose:
+
+       - it does not exist until the belly has something in it, so a new player
+         never meets it and you can only ever risk what you earned
+       - the warning runs for three seconds and ramps visibly, in two places at
+         once: the top glass reddens, and one Macoji on the payline shakes
+       - pulling anyway still spins and still pays; the lamp is the whole cost
+       - it cannot chain, and it never interrupts a spin or a celebration
+
+     CHARGED is the mirror of it — same machinery, opposite sign. */
+  var MOOD_TICK = 3000;          // how often the machine considers its mood
+  var UNEASY_MS = 3000, CHARGED_MS = 4000, MOOD_QUIET = 12000;
+  var UNEASY_PER_LAMP = 0.015;   // 10 lamps -> 15% a tick -> roughly every 3rd pull
+  var CHARGED_P = 0.04;
+  var mood = '', moodCell = null, moodUntil = 0, moodNext = 0, moodTimer = null;
+
+  function paylineCells() {
+    var out = [];
+    for (var i = 0; i < strips.length; i++) {
+      var c = strips[i].children[AT];
+      if (c) out.push(c);
+    }
+    return out;
+  }
+  function clearMood() {
+    if (moodCell) { moodCell.classList.remove('jitter', 'soft', 'bouncey'); moodCell = null; }
+    marquee.classList.remove('uneasy', 'charged');
+    lever.classList.remove('cold');
+    mood = '';
+  }
+  function setMood(next) {
+    clearMood();
+    mood = next;
+    var cells = paylineCells();
+    moodCell = cells[Math.floor(Math.random() * cells.length)] || null;
+    if (next === 'uneasy') {
+      marquee.classList.add('uneasy');
+      lever.classList.add('cold');
+      if (moodCell) {
+        moodCell.classList.add('jitter', 'soft');   // a tremble first
+        setTimeout(function () {
+          if (mood === 'uneasy' && moodCell) moodCell.classList.remove('soft');
+        }, 500);
+      }
+      sUneasy();
+      moodUntil = Date.now() + UNEASY_MS;
+      setTimeout(function () { if (mood === 'uneasy') clearMood(); }, UNEASY_MS);
+    } else {
+      marquee.classList.add('charged');
+      if (moodCell) moodCell.classList.add('bouncey');
+      sCharged();
+      moodUntil = Date.now() + CHARGED_MS;
+      setTimeout(function () { if (mood === 'charged') clearMood(); }, CHARGED_MS);
+    }
+    moodNext = moodUntil + MOOD_QUIET;
+  }
+  function moodTick() {
+    var now = Date.now();
+    if (mood || spinning || granting || unlocked || now < moodNext) return;
+    /* Never in the seconds right after a result — being ambushed while you are
+       still reading what happened is not a warning, it is a trap. */
+    if (now - settledAt < 2000) return;
+    if (lamps > 0 && Math.random() < UNEASY_PER_LAMP * lamps) return setMood('uneasy');
+    if (Math.random() < CHARGED_P) setMood('charged');
+  }
+  var settledAt = 0;
+  moodTimer = setInterval(moodTick, MOOD_TICK);
+
+  /* One Macoji shaken loose: it falls out of its cell, down past the machine and
+     off the page, and takes a lamp with it. */
+  function dropOne(cell) {
+    var img = cell && cell.querySelector('img');
+    if (!img) return;
+    var r = img.getBoundingClientRect(), size = r.width || 40;
+    var el = document.createElement('img');
+    el.className = 'bigmaco';
+    el.src = img.src;
+    el.style.width = el.style.height = size + 'px';
+    el.style.left = r.left + 'px';
+    el.style.top = r.top + 'px';
+    root.appendChild(el);
+    img.style.visibility = 'hidden';
+    setTimeout(function () { img.style.visibility = ''; }, 900);
+    var drift = (Math.random() - 0.5) * 120;
+    el.animate([
+      { transform: 'translate(0,0) rotate(0)', opacity: 1 },
+      { transform: 'translate(' + (drift / 2) + 'px,' + (window.innerHeight * 0.45) +
+        'px) rotate(' + (drift > 0 ? 180 : -180) + 'deg)', opacity: 1, offset: .55 },
+      { transform: 'translate(' + drift + 'px,' + (window.innerHeight + 120) +
+        'px) rotate(' + (drift > 0 ? 420 : -420) + 'deg)', opacity: .85 }
+    ], { duration: 1100, easing: 'cubic-bezier(.55,.06,.68,.19)', fill: 'forwards' });
+    setTimeout(function () { el.remove(); }, 1300);
+  }
+
   /* ── spin ─────────────────────────────────────────────────────────────── */
   function spin(force) {
     if (spinning || granting) return;
@@ -2216,6 +2378,10 @@
     var reloading = dumpBox.children.length > 0 ||
                     $('.window').classList.contains('emptied');
     restock();                                   // sweep the floor, reload the machine
+    /* Read it before anything clears it, and act on it after the reels are on
+       their way — the spin is never taken away from you. */
+    var pulledInto = mood, shaken = moodCell;
+    clearMood();
     sClunk(); hPull();
     var res = draw(force);
     msg.className = 'msg';
@@ -2225,9 +2391,23 @@
        own beat: ~1s between stop 1 and 2, ~1.1s between 2 and 3. Bunched-up stops
        read as one event rather than three. */
     var dur = [1600, 2650, res.tease ? 5000 : 3700];   // reel 3 crawls on a near-miss
-    for (var d = 0; d < 3; d++) dur[d] = Math.round(dur[d] * CFG.spinSpeed);
+    /* Pulled while the machine was charged: it runs long, and the whole reading
+       gets its anticipation back. */
+    var boost = pulledInto === 'charged' ? 2 : 1;
+    for (var d = 0; d < 3; d++) dur[d] = Math.round(dur[d] * CFG.spinSpeed * boost);
     stopSpinSound();
     sSpin(dur[2]);
+    if (pulledInto === 'uneasy') {
+      /* You were told. The pull stands and still pays; the lamp is the cost. */
+      restart(cab, 'judder', 'jackpot');
+      buzz([30, 40, 30, 40, 90]);
+      sShakeLoose();
+      dropOne(shaken);
+      if (lamps > 0) {
+        lamps--; drawLamps(); saveLamps();
+        setTimeout(function () { toast('<b>' + LOSTMACO + 'One got away</b>', 2200); }, 700);
+      }
+    }
     var CELL = cellPx(), done = 0;
     strips.forEach(function (strip, i) {
       strip.style.transition = 'none';
@@ -2290,6 +2470,7 @@
 
   function settle(res) {
     spinning = false;
+    settledAt = Date.now();
     /* The spin animated to the same place CSS parks it, so drop the inline
        value — otherwise it is a stale pixel number until the next pull. */
     setTimeout(function () {
@@ -2754,6 +2935,7 @@
   function resetAll() {
     /* 1. stop the show */
     gen++;                             // everything in flight is now stale
+    clearMood(); moodNext = Date.now() + MOOD_QUIET;
     if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
     $('.toast').classList.remove('on');
     var junk = root.querySelectorAll('.bigmaco, .wild');
@@ -2853,6 +3035,8 @@
 
   /* One pair of padlocks, shared by the mode toast and the sheet's badge, so the
      two always agree. */
+  var LOSTMACO = '<img class="tmaco" style="filter:grayscale(1) brightness(1.3)" ' +
+                 'src="' + FACE + '" alt="">';
   var LOCK_OPEN = '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/>' +
         '<path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
   var LOCK_SHUT = '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/>' +
@@ -2880,6 +3064,7 @@
     /* One line. The breathing cog says where to go next, so the second line was
        telling you something the interface already shows. */
     $('.cog').classList.toggle('unlocked', on);
+    if (on) clearMood();                        // Game Changer has no moods
     luck.classList.toggle('locked', !on);       // the switch is there either way
     setLuck(on ? TOP : 0, true);                // unlocked arrives charged, locked empty
     if (!on) rearm(); else sharePitch();        // Game Changer has nothing to earn
@@ -3113,6 +3298,9 @@
 
   window.LuckyMaco = {
     open: open, close: close, pull: yank,   // pull('TRIPLE'|'PAIR'|'ALLDIFF')
+    /* mood('uneasy') / mood('charged') / mood() to clear — the states are rare
+       by design, which makes them near-impossible to look at while building. */
+    mood: function (m) { m ? setMood(m) : clearMood(); return mood; },
     share: shareResult, card: shareCanvas,
     configure: configure, config: snapshot, draw: draw, pool: function () { return POOL.slice(); },
     mute: function (v) { sound = !v; paintSound(); return !sound; },
