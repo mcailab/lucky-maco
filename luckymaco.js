@@ -2601,7 +2601,9 @@
      the end, so translating by the whole strip length and looping lands exactly
      where it started and the join cannot be seen. */
   var rolling = false, rollAnims = [], rollRes = null;
+  var armDeg = 0, turning = false, turnOffset = 0;
   function armFree(deg) {                        // no shrink: this is a full turn
+    armDeg = deg;
     arm.style.transform = 'rotate(' + deg + 'deg)';
     knob.style.transform = 'none';
   }
@@ -2635,6 +2637,12 @@
     noise(0.05, 0.42, 800, 3, 180);              // the clack of it giving way
     tone(110, 0.28, 'square', 0.13, 55);
     buzz([70, 40, 30]);
+    /* End the gesture that broke it. Without this the very same drag carries
+       straight on into the rotary handler, which walks the arm back to wherever
+       the finger is — so it flopped and un-flopped in one frame and looked as
+       though it had never moved at all. Let go, then take hold of it again. */
+    dragging = false;
+    lever.classList.remove('dragging', 'ready');
     var CELL = cellPx();
     rollAnims = [];
     strips.forEach(function (strip, i) {
@@ -2936,6 +2944,19 @@
   }
   lever.addEventListener('pointerdown', function (e) {
     if (spinning || celebrating) return;
+    /* Taking hold of a lever that has given way: from here the arm follows the
+       angle of your hand around the pivot. The offset is recorded so it does not
+       jump to meet your finger the moment you touch it. */
+    if (rolling) {
+      turning = true;
+      /* Clamped: grab the arm well off its axis and a large offset could put the
+         top out of reach entirely, leaving it running with no way to stop it. */
+      turnOffset = Math.max(-20, Math.min(20, armDeg - angleTo(e.clientX, e.clientY)));
+      lever.classList.add('dragging');
+      try { lever.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+      return;
+    }
     dragging = true; y0 = e.clientY; pulled = 0; moved = 0; t0 = Date.now();
     lever.classList.add('dragging');
     lever.classList.remove('hint');
@@ -2945,17 +2966,17 @@
     e.preventDefault();
   });
   lever.addEventListener('pointermove', function (e) {
-    if (!dragging) return;
     /* While it is running free the arm follows the pointer's angle around its own
        pivot rather than a vertical drag — that is what makes it a switch you turn
        instead of a handle you pull, and it behaves the same under a thumb. */
-    if (rolling) {
-      var deg = angleTo(e.clientX, e.clientY);
+    if (turning) {
+      var deg = Math.max(0, Math.min(180, angleTo(e.clientX, e.clientY) + turnOffset));
       arm.style.transition = 'none';
       armFree(deg);
-      if (deg < 8) stopRoll();                  // all the way back to the top, by hand
+      if (deg < 8) { turning = false; stopRoll(); }   // all the way to the top, by hand
       return;
     }
+    if (!dragging) return;
     var dy = e.clientY - y0;
     moved = Math.max(moved, Math.abs(dy));
     pulled = Math.max(0, Math.min(MAX, dy));
@@ -2969,13 +2990,11 @@
     }
   });
   function release() {
+    if (turning) { turning = false; return; }    // left mid-turn: it keeps running
     if (!dragging) return;
     dragging = false;
     lever.classList.remove('dragging');
     lever.classList.remove('ready');
-    /* Letting go mid-turn leaves it running — the only way out is to finish the
-       turn. It springs to wherever it was left, so it never snaps back on you. */
-    if (rolling) return;
     arm.style.transition = 'transform .6s cubic-bezier(.34,1.8,.5,1)';   // the bounce back
     var ms = Math.max(1, Date.now() - t0);
     /* A click has no drag in it, so the rotary gimmick never sees it — charged
@@ -3293,6 +3312,7 @@
         try { rollAnims[ra].cancel(); } catch (e) {}
       }
       rollAnims = []; rollRes = null;
+      turning = false;
       marquee.classList.remove('charged');
       arm.style.transition = 'none'; setArm(0);
     }
