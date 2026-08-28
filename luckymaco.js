@@ -752,7 +752,18 @@
     'box-shadow:0 2px 6px rgba(0,0,0,.45)}',
     '.knob{position:absolute;left:-11px;top:-16px;width:31px;height:31px;border-radius:50%;',
     'background:radial-gradient(circle at 32% 28%,#FF8A8A,#C31432 70%);',
-    'box-shadow:0 4px 12px rgba(0,0,0,.5),inset 0 -3px 6px rgba(0,0,0,.35)}',
+    'box-shadow:0 4px 12px rgba(0,0,0,.5),inset 0 -3px 6px rgba(0,0,0,.35);',
+    'transition:box-shadow .15s}',
+    /* Past the firing point the knob lights up, so the answer to "how far do I
+       have to pull this" is on screen instead of in the source. */
+    '.lever.ready .knob{box-shadow:0 4px 12px rgba(0,0,0,.5),',
+    'inset 0 -3px 6px rgba(0,0,0,.35),0 0 0 3px var(--glow2),0 0 16px 2px var(--glow2)}',
+    /* And a mouse has no way of knowing the thing is draggable, so it bobs. */
+    '@keyframes leverhint{0%,72%,100%{transform:translateY(0)}',
+    '80%{transform:translateY(7px)}88%{transform:translateY(2px)}}',
+    '.lever.hint .arm{animation:leverhint 2.6s ease-in-out infinite}',
+    '.lever.dragging .arm,.lever.busy .arm{animation:none}',
+    '@media (prefers-reduced-motion:reduce){.lever.hint .arm{animation:none}}',
     '.mount{position:absolute;left:15px;bottom:0;width:28px;height:17px;border-radius:7px;',
     'background:var(--mount);border:1px solid var(--cab-br)}',
 
@@ -1775,6 +1786,22 @@
      machine sits empty with the pile on the floor until you play again. */
 
   function restock(done) {
+    /* He is a fixed-position sprite over the whole page, so a restock behind him
+       refills a machine nobody can see. spin() already sends him away; a tap on a
+       spent machine goes nowhere near spin(). */
+    if (lastMaco) {
+      var going = lastMaco; lastMaco = null;
+      going.animate([{ opacity: 1 }, { transform: 'scale(.86) translateY(14px)', opacity: 0 }],
+                    { duration: 260, easing: 'ease-in', fill: 'forwards' });
+      setTimeout(function () { going.remove(); }, 280);
+    }
+    /* And anything else still in the air. The release throws thirty-odd sprites
+       across the page on their own timers; tracking only the one that lands in
+       the window left the stragglers covering the machine it was refilling. */
+    var strays = root.querySelectorAll('.bigmaco'), st;
+    for (st = 0; st < strays.length; st++) {
+      if (strays[st] !== lastMaco) strays[st].remove();
+    }
     var refill = function () {
       var wasDark = $('.window').classList.contains('emptied');
       $('.window').classList.remove('emptied');
@@ -2155,6 +2182,7 @@
   /* ── spin ─────────────────────────────────────────────────────────────── */
   function spin(force) {
     if (spinning || granting) return;
+    pulledOnce = true; lever.classList.remove('hint');
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
@@ -2375,7 +2403,7 @@
   /* FIRE was 62px, which meant a deliberate long drag — a tap or a short tug did
      nothing at all and read as the lever being broken. Now: a short pull fires, a
      quick flick fires, and a plain click fires. */
-  var MAX = 110, FIRE = 30, DOWN = 58, SHRINK = 0.42;
+  var MAX = 110, FIRE = 22, DOWN = 58, SHRINK = 0.42;
   var TAP = 6, FLICK = 0.9;                    // px of slop for a click, px/ms for a flick
   function setArm(deg) {
     var k = deg / DOWN, sy = 1 - SHRINK * k;
@@ -2383,11 +2411,21 @@
     knob.style.transform = 'scaleY(' + (1 / sy) + ')';   // keep the ball round
   }
 
-  var t0 = 0, moved = 0;
+  var t0 = 0, moved = 0, pulledOnce = false;
+  /* Only where a pointer can hover — a finger already knows to grab it, and on a
+     phone a bobbing arm just looks like a fault. Stops for good once you have
+     worked it once. */
+  if (window.matchMedia && window.matchMedia('(hover:hover)').matches) {
+    setTimeout(function hint() {
+      if (!pulledOnce) { lever.classList.add('hint'); setTimeout(hint, 9000); }
+    }, 3500);
+  }
   lever.addEventListener('pointerdown', function (e) {
     if (spinning) return;
     dragging = true; y0 = e.clientY; pulled = 0; moved = 0; t0 = Date.now();
     lever.classList.add('dragging');
+    lever.classList.remove('hint');
+    pulledOnce = true;
     arm.style.transition = 'none';
     try { lever.setPointerCapture(e.pointerId); } catch (err) {}
     e.preventDefault();
@@ -2398,11 +2436,17 @@
     moved = Math.max(moved, Math.abs(dy));
     pulled = Math.max(0, Math.min(MAX, dy));
     setArm((pulled / MAX) * DOWN);
+    var armed = pulled >= FIRE;
+    if (armed !== lever.classList.contains('ready')) {
+      lever.classList.toggle('ready', armed);
+      if (armed) noise(0.02, 0.14, 1900, 7);      // the detent you can hear
+    }
   });
   function release() {
     if (!dragging) return;
     dragging = false;
     lever.classList.remove('dragging');
+    lever.classList.remove('ready');
     arm.style.transition = 'transform .6s cubic-bezier(.34,1.8,.5,1)';   // the bounce back
     var ms = Math.max(1, Date.now() - t0);
     var fires = pulled >= FIRE                     // pulled far enough
