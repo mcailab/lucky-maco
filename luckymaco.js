@@ -1674,21 +1674,6 @@
     chime([392, 523, 784], 60, 0.24, 0.07, 'triangle');   // and back up
     noise(0.18, 0.04, 400, 2, 2200, 0.28);
   };
-  /* The machine getting uneasy: a low uneven grumble with a rattle over it.
-     Deliberately unmusical — it should read as something loose, not a cue. */
-  function sUneasy() {
-    noise(0.9, 0.05, 190, 1.6, 120);
-    tone(78, 0.9, 'sawtooth', 0.035, 62);
-    for (var i = 0; i < 9; i++) noise(0.014, 0.05, 1100 + Math.random() * 700, 9, 0, i * 0.1);
-  }
-  /* Danger: a two-note alarm, the sound every machine uses to say stop. */
-  function sAlarm() {
-    for (var i = 0; i < 5; i++) {
-      tone(880, 0.16, 'square', 0.075, 0, i * 0.42);
-      tone(660, 0.16, 'square', 0.075, 0, i * 0.42 + 0.19);
-    }
-    noise(1.8, 0.05, 200, 1.6, 90);
-  }
   /* Charged: the same idea an octave up and in tune — clearly a good thing. */
   function sCharged() {
     chime([784, 988, 1175, 1568], 70, 0.3, 0.055, 'sine');
@@ -2393,7 +2378,6 @@
         if (mood !== 'danger') return;
         for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.add('hard');
       }, 400);
-      sAlarm();
     } else if (next === 'uneasy') {
       var n = Math.min(atStake() || 1, cells.length);
       /* Shuffle so it is not always the same reels that get nervous. */
@@ -2406,16 +2390,19 @@
          same whatever the machine is feeling, so it is always the same thing to
          reach for. */
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('jitter', 'soft');
+      /* Silent. The shaking is a warning, and a warning that also makes a noise
+         is two signals for one thing — the sound belongs to them coming loose. */
       setTimeout(function () {                      // a tremble, then the real thing
         if (mood !== 'uneasy') return;
         for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.remove('soft');
       }, 500);
-      sUneasy();
     } else {
       moodCells = [cells[Math.floor(Math.random() * cells.length)]].filter(Boolean);
-      /* Charged shows nothing at all. It is a state you discover by touching
-         the lever, and what the lever then does is the whole reveal. */
+      /* The gold glass and nothing else — no bouncing face. It is the one mood
+         that colours the machine while it is happening, and what the lever does
+         when you touch it is the rest of the reveal. */
       moodCells = [];
+      marquee.classList.add('charged');
       sCharged();
     }
     moodUntil = Date.now() + rnd(MOOD_MIN, MOOD_MAX);
@@ -2443,7 +2430,6 @@
     cab.classList.add('alarm');
     restart(cab, 'comeapart', 'jackpot');
     for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter', 'hard');
-    sAlarm();
     buzz([60, 50, 60, 50, 60, 50, 120, 60, 180, 60, 400]);
 
     var FIRST = 1400, GAP = 340;
@@ -2496,7 +2482,6 @@
     setTimeout(function () {
       for (var k = 0; k < cells.length; k++) cells[k].classList.add('hard');
     }, 450);
-    sUneasy();
     buzz([40, 60, 60, 60, 90, 50, 140, 50, 260]);
 
     /* 2. they come loose one at a time, slowly enough to watch */
