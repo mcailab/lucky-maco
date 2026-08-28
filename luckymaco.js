@@ -58,8 +58,10 @@
        with the belly, so the frequency must not. This was left at the old
        per-lamp figure of 0.015 when the formula went flat, which made uneasy
        rarer than charged and rarer at ten lamps than it had been at two. */
-    uneasy:   0.35,             // ~ every 9s of watchable time. 0 turns moods off.
-    charged:  0.10,             // the opposite — a long spin — every ~30s
+    /* Chance per 3s roll. Whatever is left over is the machine sitting settled. */
+    uneasy:   0.25,             // 1-3 shake, and you lose that many
+    danger:   0.25,             // the whole belly, and only when 5+ are lit
+    charged:  0.25,             // the good one: the reels run long
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -70,7 +72,7 @@
   var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
                 stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6],
-                uneasy: [0, 1], charged: [0, 1] };   // 100% = every roll
+                uneasy: [0, 1], danger: [0, 1], charged: [0, 1] };  // 1 = every roll
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -440,7 +442,7 @@
        celebrations use, so they can never be showing at once. */
     '.mqmood{position:absolute;inset:0;border-radius:18px;pointer-events:none;',
     'z-index:0;opacity:0;transition:opacity .6s}',
-    '.marquee.uneasy .mqmood{opacity:1;',
+    '.marquee.danger .mqmood{opacity:1;',
     'background:radial-gradient(120% 165% at 50% 118%,#C4322B,transparent 64%),',
     'linear-gradient(180deg,rgba(196,50,43,.24),rgba(120,20,18,.42));',
     'animation:moodbreath 1.5s ease-in-out infinite}',
@@ -448,10 +450,17 @@
     'background:radial-gradient(120% 165% at 50% 118%,#FFF3CE,transparent 66%),',
     'linear-gradient(180deg,rgba(255,241,205,.50),rgba(255,190,60,.60));',
     'animation:moodbreath .5s ease-in-out infinite}',
-    '@keyframes moodbreath{0%,100%{filter:brightness(.85)}50%{filter:brightness(1.2)}}',
-    '.marquee.uneasy .bulb{animation-duration:5s;opacity:.12}',
-    '.marquee.uneasy .mglow::before{animation-duration:9s;filter:saturate(.2)}',
-    '.marquee.uneasy .mq-name{animation:none;-webkit-text-fill-color:#D8A99B}',
+    '@keyframes moodbreath{0%,100%{filter:brightness(.7)}50%{filter:brightness(1.45)}}',
+    '.marquee.danger .bulb{animation:flash .16s steps(1) infinite;',
+    'background:#FF6B5E;box-shadow:0 0 9px 2px #C4322B}',
+    '.marquee.danger .mglow::before{animation-duration:.5s;filter:hue-rotate(-35deg)}',
+    '.marquee.danger .mq-name{animation:none;-webkit-text-fill-color:#FFD9D2}',
+    /* the whole cabinet leans into it */
+    '@keyframes alarmlean{0%,100%{transform:rotate(0)}',
+    '50%{transform:rotate(-.7deg)}}',
+    '.cab.alarm{animation:alarmlean .5s ease-in-out infinite}',
+    '.belly .lamp.atrisk{animation:jitter .13s linear infinite;',
+    'filter:none;transform-origin:50% 60%}',
     '.marquee.charged .bulb{animation:flash .18s steps(1) infinite}',
     '.marquee.charged .mglow::before{animation-duration:.6s}',
     /* the lever looks unusable while the machine is unhappy */
@@ -1677,6 +1686,14 @@
     tone(78, 0.9, 'sawtooth', 0.035, 62);
     for (var i = 0; i < 9; i++) noise(0.014, 0.05, 1100 + Math.random() * 700, 9, 0, i * 0.1);
   }
+  /* Danger: a two-note alarm, the sound every machine uses to say stop. */
+  function sAlarm() {
+    for (var i = 0; i < 5; i++) {
+      tone(880, 0.16, 'square', 0.075, 0, i * 0.42);
+      tone(660, 0.16, 'square', 0.075, 0, i * 0.42 + 0.19);
+    }
+    noise(1.8, 0.05, 200, 1.6, 90);
+  }
   /* Charged: the same idea an octave up and in tune — clearly a good thing. */
   function sCharged() {
     chime([784, 988, 1175, 1568], 70, 0.3, 0.055, 'sine');
@@ -2331,18 +2348,38 @@
   }
   function clearMood() {
     for (var i = 0; i < moodCells.length; i++) {
-      moodCells[i].classList.remove('jitter', 'soft', 'bouncey');
+      moodCells[i].classList.remove('jitter', 'soft', 'hard', 'bouncey');
     }
     moodCells = [];
-    marquee.classList.remove('uneasy', 'charged');
+    marquee.classList.remove('danger', 'charged');
+    cab.classList.remove('alarm');
     lever.classList.remove('cold');
+    var lit = belly.querySelectorAll('.lamp.atrisk');
+    for (i = 0; i < lit.length; i++) lit[i].classList.remove('atrisk');
     mood = '';
   }
   function setMood(next) {
     clearMood();
     mood = next;
     var cells = paylineCells(), i;
-    if (next === 'uneasy') {
+    if (next === 'danger') {
+      /* Everything, and it looks like everything: the glass goes red, the
+         cabinet leans, all three reels shake and every lit lamp shakes with
+         them. Uneasy touches a few faces; this touches the whole machine. */
+      moodCells = cells;
+      marquee.classList.add('danger');
+      cab.classList.add('alarm');
+      lever.classList.add('cold');
+      for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter');
+      var lit = belly.querySelectorAll('.lamp.lit');
+      for (i = 0; i < lit.length; i++) lit[i].classList.add('atrisk');
+      setTimeout(function () {
+        if (mood !== 'danger') return;
+        for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.add('hard');
+      }, 400);
+      sAlarm();
+      moodUntil = Date.now() + rnd(3000, 5000);
+    } else if (next === 'uneasy') {
       var n = Math.min(atStake() || 1, cells.length);
       /* Shuffle so it is not always the same reels that get nervous. */
       for (i = cells.length - 1; i > 0; i--) {
@@ -2350,7 +2387,9 @@
         cells[i] = cells[j]; cells[j] = t;
       }
       moodCells = cells.slice(0, n);
-      marquee.classList.add('uneasy');
+      /* No glass. The red belongs to Danger, so that when it does light up it
+         means one thing only. Uneasy is the Macoji alone — and the lever going
+         cold, because that is the thing you are about to touch. */
       lever.classList.add('cold');
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('jitter', 'soft');
       setTimeout(function () {                      // a tremble, then the real thing
@@ -2377,7 +2416,7 @@
     /* Paced by whichever mood is set to come round fastest, because the quiet
        gates BOTH. Basing it on the mood that just fired meant a charged spell at
        10% imposed up to a minute of silence and starved uneasy at 60%. */
-    var wait = 3000 / Math.max(0.01, CFG.uneasy, CFG.charged);
+    var wait = 3000 / Math.max(0.01, CFG.uneasy, CFG.danger, CFG.charged);
     moodNext = moodUntil + rnd(0.6, 2.0) * wait;    // and never the same gap twice
   }
 
@@ -2385,7 +2424,54 @@
      And what follows is not a spin: the machine is coming apart, so it shakes
      itself out, drops them one at a time, says what it cost, and reloads. There
      is no reading at the end of it, because you never got a pull. */
+  /* Danger spends the lot. Same shape as an escape, but it empties the belly
+     as well as the window: the three on the reels go first, then every lit lamp
+     climbs out after them. */
+  function breakOut() {
+    if (mood !== 'danger') return false;
+    var cells = moodCells.slice();
+    var lit = [], all = belly.querySelectorAll('.lamp.lit');
+    for (var i = 0; i < all.length; i++) lit.push(all[i]);
+    clearMood();
+    celebrating = true;
+    lever.classList.add('busy');
+    restart(cab, 'comeapart', 'jackpot');
+    for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter', 'hard');
+    sAlarm();
+    buzz([60, 50, 60, 50, 60, 50, 120, 60, 180, 60, 400]);
+
+    var FIRST = 1400, GAP = 340;
+    for (i = 0; i < cells.length; i++) {
+      (function (c, d) {
+        setTimeout(function () {
+          c.classList.remove('jitter', 'hard');
+          sShakeLoose(); dropOne(c);
+        }, d);
+      })(cells[i], FIRST + i * GAP);
+    }
+    var afterReels = FIRST + cells.length * GAP;
+    /* then the belly itself, one lamp at a time */
+    for (i = 0; i < lit.length; i++) {
+      (function (el, d) {
+        setTimeout(function () { sShakeLoose(); dropOne(el); }, d);
+      })(lit[i], afterReels + i * 190);
+    }
+    var last = afterReels + lit.length * 190;
+    setTimeout(function () {
+      var lost = lamps;
+      lamps = 0; drawLamps(); saveLamps();
+      toast('<b>' + LOSTMACO + 'They all got out!</b>', 2600);
+    }, last + 500);
+    setTimeout(function () {
+      fillIn();
+      celebrating = false;
+      lever.classList.remove('busy');
+    }, last + 1300);
+    return true;
+  }
+
   function shakeLoose() {
+    if (mood === 'danger') return breakOut();
     if (mood !== 'uneasy') return false;
     var cells = moodCells.slice(), n = cells.length;
     clearMood();
@@ -2454,6 +2540,10 @@
        the good mood was firing about never. Rolling the rarer one first gives it
        its own odds instead of the leftovers. */
     if (Math.random() < CFG.charged) return setMood('charged');
+    /* Danger is only worth its name when there is something to take: below five
+       lit it is indistinguishable from Uneasy, and emptying a belly of two is
+       noise rather than drama. */
+    if (lamps >= 5 && Math.random() < CFG.danger) return setMood('danger');
     /* Flat, because the severity already scales with the belly — charging the
        endgame twice, more often AND more expensive, is not a difficulty curve,
        it is a punishment. */
@@ -2474,7 +2564,8 @@
   /* One Macoji shaken loose: it falls out of its cell, down past the machine and
      off the page, and takes a lamp with it. */
   function dropOne(cell) {
-    var img = cell && cell.querySelector('img');
+    var img = !cell ? null
+            : (cell.tagName === 'IMG' ? cell : cell.querySelector('img'));
     if (!img) return;
     var r = img.getBoundingClientRect(), size = r.width || 40;
     var el = document.createElement('img');
@@ -2942,6 +3033,8 @@
       '<h3>Mood</h3><table>' +
         '<tr><td>Uneasy &mdash; per 3s</td><td>' +
           step('uneasy', 0.01, (CFG.uneasy * 100).toFixed(0) + '%') + '</td></tr>' +
+        '<tr><td>Danger &mdash; per 3s</td><td>' +
+          step('danger', 0.01, (CFG.danger * 100).toFixed(0) + '%') + '</td></tr>' +
         '<tr><td>Charged &mdash; per 3s</td><td>' +
           step('charged', 0.01, (CFG.charged * 100).toFixed(0) + '%') + '</td></tr>' +
         /* The gap between one and the next, not the wait before one starts: a
@@ -2954,6 +3047,9 @@
         '<tr><td>Uneasy</td><td>' +
           (CFG.uneasy > 0 ? '~' + Math.round(3 / CFG.uneasy * 2.3 + 4) + 's' : 'off') +
           '</td></tr>' +
+        '<tr><td>Danger</td><td>' +
+          (CFG.danger > 0 ? '~' + Math.round(3 / CFG.danger * 2.3 + 4) + 's, at 5+ lit'
+                          : 'off') + '</td></tr>' +
         '<tr><td>Charged</td><td>' +
           (CFG.charged > 0 ? '~' + Math.round(3 / CFG.charged * 2.3 + 4) + 's' : 'off') +
           '</td></tr>' +
