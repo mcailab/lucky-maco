@@ -457,7 +457,7 @@
     '50%{transform:rotate(-.7deg)}}',
     '.cab.alarm{animation:alarmlean .5s ease-in-out infinite}',
     '.belly .lamp.atrisk{animation:jitter .13s linear infinite;',
-    'filter:none;transform-origin:50% 60%}',
+    'transform-origin:50% 60%}',
     '.marquee.charged .bulb{animation:flash .18s steps(1) infinite}',
     '.marquee.charged .mglow::before{animation-duration:.6s}',
     /* the lever looks unusable while the machine is unhappy */
@@ -465,19 +465,14 @@
     '.lever.cold .arm{filter:brightness(.8)}',
     /* the Macoji that is about to fall — shaking is bad, bouncing is good, and
        they are deliberately nothing like each other */
-    /* Uneasy has no glass and no lever any more, so the shake is the entire
-       signal and has to be unmissable on its own: bigger throw, faster, scaled
-       up out of the row, and lit red from underneath. */
+    /* The movement is the whole signal — no colour behind it, no glow on it.
+       A face that will not keep still is enough. */
     '@keyframes jitter{0%,100%{transform:translate(0,0) rotate(0) scale(1.1)}',
     '20%{transform:translate(-4px,2px) rotate(-11deg) scale(1.1)}',
     '40%{transform:translate(4px,-2px) rotate(11deg) scale(1.1)}',
     '60%{transform:translate(-3px,2.5px) rotate(-8deg) scale(1.1)}',
     '80%{transform:translate(3px,-2.5px) rotate(8deg) scale(1.1)}}',
-    '.cell.jitter img{animation:jitter .13s linear infinite;',
-    'filter:drop-shadow(0 0 10px rgba(228,87,79,.95)) brightness(1.12)}',
-    /* the cell behind it glows too, so it reads even at a glance */
-    '.cell.jitter{background:radial-gradient(60% 60% at 50% 55%,',
-    'rgba(228,87,79,.42),transparent 72%)}',
+    '.cell.jitter img{animation:jitter .13s linear infinite}',
     '.cell.jitter.soft img{animation-duration:.22s}',
     '@keyframes bouncey{0%,100%{transform:translateY(0) scale(1)}',
     '45%{transform:translateY(-16%) scale(1.06)}}',
@@ -852,8 +847,7 @@
     '40%{transform:translate(5px,-2px) rotate(14deg) scale(1.08)}',
     '60%{transform:translate(-4px,3px) rotate(-10deg) scale(1.08)}',
     '80%{transform:translate(4px,-3px) rotate(10deg) scale(1.08)}}',
-    '.cell.jitter.hard img{animation:jitterhard .1s linear infinite;',
-    'filter:drop-shadow(0 0 12px rgba(228,87,79,.95))}',
+    '.cell.jitter.hard img{animation:jitterhard .1s linear infinite}',
     /* Small win stays inside the reel window: the payline lights and the two
        matching Macoji wiggle in place. No cabinet movement, nothing falls. */
     '@keyframes wiggle{0%,100%{transform:scale(1) rotate(0)}',
@@ -2360,6 +2354,18 @@
     }
     return out;
   }
+  /* All nine in the window. Danger takes the whole machine, so it takes the
+     whole window with it — the rows above and below the payline included. */
+  function windowCells() {
+    var out = [];
+    for (var i = 0; i < strips.length; i++) {
+      for (var k = 0; k < ROWS; k++) {
+        var c = strips[i].children[TRAIL + k];
+        if (c) out.push(c);
+      }
+    }
+    return out;
+  }
   function clearMood() {
     for (var i = 0; i < moodCells.length; i++) {
       moodCells[i].classList.remove('jitter', 'soft', 'hard', 'bouncey');
@@ -2380,8 +2386,8 @@
       /* Everything, and it looks like everything: the glass goes red, the
          cabinet leans, all three reels shake and every lit lamp shakes with
          them. Uneasy touches a few faces; this touches the whole machine. */
-      moodCells = cells;
-      marquee.classList.add('danger');
+      moodCells = windowCells();
+      cells = moodCells;
       cab.classList.add('alarm');
       lever.classList.add('cold');
       for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter');
@@ -2437,6 +2443,8 @@
     clearMood();
     celebrating = true;
     lever.classList.add('busy');
+    marquee.classList.add('danger');               // now, and only now
+    cab.classList.add('alarm');
     restart(cab, 'comeapart', 'jackpot');
     for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter', 'hard');
     sAlarm();
@@ -2465,6 +2473,8 @@
       toast('<b>' + LOSTMACO + 'They all got out!</b>', 2600);
     }, last + 500);
     setTimeout(function () {
+      marquee.classList.remove('danger');
+      cab.classList.remove('alarm');
       fillIn();
       celebrating = false;
       lever.classList.remove('busy');
@@ -2479,6 +2489,9 @@
     clearMood();
     celebrating = true;                            // no pull lands on top of this
     lever.classList.add('busy');
+    /* The red glass belongs to this moment and no other: not to the warning,
+       only to them actually coming out. */
+    marquee.classList.add('danger');
 
     /* 1. it works itself up — 1.4s of building before anything gives */
     restart(cab, 'comeapart', 'jackpot');
@@ -2513,6 +2526,7 @@
     /* 4. and the machine puts itself back together, ready to go again */
     setTimeout(function () {
       for (var k = 0; k < cells.length; k++) cells[k].classList.remove('jitter', 'hard');
+      marquee.classList.remove('danger');
       fillIn();                                    // hopper pours, reels drop from the top
       celebrating = false;
       lever.classList.remove('busy');
