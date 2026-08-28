@@ -2324,31 +2324,20 @@
        - it cannot chain, and it never interrupts a spin or a celebration
 
      CHARGED is the mirror of it — same machinery, opposite sign. */
-  /* A rotation, not a lottery. The machine alternates: calm for 3-5s, then one
-     mood for 3-5s, then calm again. Which mood comes next is drawn from a bag
-     holding the three; when the bag runs out it is refilled and reshuffled.
+  /* The machine alternates, and there is nothing else to it:
 
-     That is the same equal chance as rolling dice, but it guarantees you see all
-     three each round instead of getting one twice while another never appears.
-     Dice for each mood in turn, sharing one quiet period, was what made Uneasy
-     the rarest of the three when all three were set to the same number.
+       calm 2-5s  ->  one of the three moods, 2-5s  ->  calm 2-5s  ->  ...
 
-     Danger is in every third bag rather than every one: it empties the whole
-     belly, and coming round every 24 seconds would make ten Maco unreachable. */
+     The mood is picked with equal chance, so something happens every ~7s and any
+     one of them comes round every ~21s.
+
+     What this replaced: three separate dice rolled one after another on the same
+     tick, sharing a quiet period. Set to the same 25% they came out at 25 / 19 /
+     14 percent, because each roll only happened if the one before it had failed
+     — and the sheet reported them as if each were alone. */
   var mood = '', moodCells = [], moodUntil = 0, moodNext = 0, moodTimer = null;
-  var moodBag = [], moodRound = 0;
-  function nextMood() {
-    if (!moodBag.length) {
-      moodRound++;
-      moodBag = ['uneasy', 'charged'];
-      if (moodRound % 3 === 0) moodBag.push('danger');
-      for (var i = moodBag.length - 1; i > 0; i--) {      // shuffle
-        var j = Math.floor(Math.random() * (i + 1)), t = moodBag[i];
-        moodBag[i] = moodBag[j]; moodBag[j] = t;
-      }
-    }
-    return moodBag.shift();
-  }
+  var MOODS = ['uneasy', 'danger', 'charged'];
+  var MOOD_MIN = 2000, MOOD_MAX = 5000;
   /* How many shake, and therefore how many you lose: the machine shows the price
      before you pay it. One rule for how often, one for how much, one for how
      long, and none of them overlap. */
@@ -2421,11 +2410,11 @@
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('bouncey');
       sCharged();
     }
-    moodUntil = Date.now() + rnd(3000, 5000);        // every mood, 3-5s
+    moodUntil = Date.now() + rnd(MOOD_MIN, MOOD_MAX);
     var mine = moodUntil;
     setTimeout(function () { if (mood && moodUntil === mine) clearMood(); },
                moodUntil - Date.now());
-    moodNext = moodUntil + rnd(3000, 5000);         // then 3-5s of calm
+    moodNext = moodUntil + rnd(MOOD_MIN, MOOD_MAX);  // then the same again, calm
   }
 
   /* Touching the lever at all is enough — you do not have to complete a pull.
@@ -2544,10 +2533,10 @@
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
-    var next = nextMood();
+    var next = MOODS[Math.floor(Math.random() * MOODS.length)];
     /* Danger with little to take is indistinguishable from Uneasy, and emptying
        a belly of two is noise rather than drama — it waits for a full one. */
-    if (next === 'danger' && lamps < 5) { moodBag.unshift('danger'); return; }
+    if (next === 'danger' && lamps < 5) return;
     if (next !== 'charged' && lamps <= 0) return;    // nothing to lose, nothing to fear
     setMood(next);
   }
@@ -3039,10 +3028,10 @@
          which makes a round five moods long. */
       '<h3>Mood</h3><table>' +
         '<tr><td>Moods</td><td>' + (CFG.moods ? 'On' : 'Off') + '</td></tr>' +
-        '<tr><td>Calm, then a mood</td><td>3&ndash;5s each</td></tr>' +
-        '<tr><td>Any mood</td><td>~8s</td></tr>' +
-        '<tr><td>Uneasy &middot; Charged</td><td>~16s</td></tr>' +
-        '<tr><td>Danger</td><td>~48s, at 5+ lit</td></tr>' +
+        '<tr><td>Calm, then a mood</td><td>2&ndash;5s each</td></tr>' +
+        '<tr><td>Something happens</td><td>~7s</td></tr>' +
+        '<tr><td>Each of the three</td><td>~21s</td></tr>' +
+        '<tr><td>Danger needs</td><td>5+ lit</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
