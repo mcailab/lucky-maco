@@ -58,10 +58,7 @@
        with the belly, so the frequency must not. This was left at the old
        per-lamp figure of 0.015 when the formula went flat, which made uneasy
        rarer than charged and rarer at ten lamps than it had been at two. */
-    /* Chance per 3s roll. Whatever is left over is the machine sitting settled. */
-    uneasy:   0.25,             // 1-3 shake, and you lose that many
-    danger:   0.25,             // the whole belly, and only when 5+ are lit
-    charged:  0.25,             // the good one: the reels run long
+    moods:    true,             // the machine's moods. false switches them off.
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -69,10 +66,10 @@
   for (var _k in CFG) DEFAULTS[_k] = CFG[_k];
 
   var NUM = { triple: 1, twins: 1, nearMiss: 1 };
-  var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
+  var BOOL = { moods: 1, shake: 1, sound: 1, changer: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
                 stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6],
-                uneasy: [0, 1], danger: [0, 1], charged: [0, 1] };  // 1 = every roll
+                };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -2327,9 +2324,31 @@
        - it cannot chain, and it never interrupts a spin or a celebration
 
      CHARGED is the mirror of it — same machinery, opposite sign. */
-  var MOOD_TICK = 3000;          // how often the machine considers its mood
-  var CHARGED_MS = 4000;
+  /* A rotation, not a lottery. The machine alternates: calm for 3-5s, then one
+     mood for 3-5s, then calm again. Which mood comes next is drawn from a bag
+     holding the three; when the bag runs out it is refilled and reshuffled.
+
+     That is the same equal chance as rolling dice, but it guarantees you see all
+     three each round instead of getting one twice while another never appears.
+     Dice for each mood in turn, sharing one quiet period, was what made Uneasy
+     the rarest of the three when all three were set to the same number.
+
+     Danger is in every third bag rather than every one: it empties the whole
+     belly, and coming round every 24 seconds would make ten Maco unreachable. */
   var mood = '', moodCells = [], moodUntil = 0, moodNext = 0, moodTimer = null;
+  var moodBag = [], moodRound = 0;
+  function nextMood() {
+    if (!moodBag.length) {
+      moodRound++;
+      moodBag = ['uneasy', 'charged'];
+      if (moodRound % 3 === 0) moodBag.push('danger');
+      for (var i = moodBag.length - 1; i > 0; i--) {      // shuffle
+        var j = Math.floor(Math.random() * (i + 1)), t = moodBag[i];
+        moodBag[i] = moodBag[j]; moodBag[j] = t;
+      }
+    }
+    return moodBag.shift();
+  }
   /* How many shake, and therefore how many you lose: the machine shows the price
      before you pay it. One rule for how often, one for how much, one for how
      long, and none of them overlap. */
@@ -2378,7 +2397,6 @@
         for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.add('hard');
       }, 400);
       sAlarm();
-      moodUntil = Date.now() + rnd(3000, 5000);
     } else if (next === 'uneasy') {
       var n = Math.min(atStake() || 1, cells.length);
       /* Shuffle so it is not always the same reels that get nervous. */
@@ -2397,27 +2415,17 @@
         for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.remove('soft');
       }, 500);
       sUneasy();
-      moodUntil = Date.now() + rnd(3000, 5000);     // never the same length twice
     } else {
       moodCells = [cells[Math.floor(Math.random() * cells.length)]].filter(Boolean);
       marquee.classList.add('charged');
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('bouncey');
       sCharged();
-      moodUntil = Date.now() + CHARGED_MS;
     }
+    moodUntil = Date.now() + rnd(3000, 5000);        // every mood, 3-5s
     var mine = moodUntil;
     setTimeout(function () { if (mood && moodUntil === mine) clearMood(); },
                moodUntil - Date.now());
-    /* The quiet has to scale with the setting, or it becomes the floor and the
-       dial stops meaning anything: a flat 8-25s made 60% behave almost exactly
-       like 35%, because 11-30 seconds of every cycle was spoken for before the
-       dice were rolled at all. It is now a multiple of the wait the setting
-       implies, so turning the dial up genuinely speeds the whole rhythm. */
-    /* Paced by whichever mood is set to come round fastest, because the quiet
-       gates BOTH. Basing it on the mood that just fired meant a charged spell at
-       10% imposed up to a minute of silence and starved uneasy at 60%. */
-    var wait = 3000 / Math.max(0.01, CFG.uneasy, CFG.danger, CFG.charged);
-    moodNext = moodUntil + rnd(0.6, 2.0) * wait;    // and never the same gap twice
+    moodNext = moodUntil + rnd(3000, 5000);         // then 3-5s of calm
   }
 
   /* Touching the lever at all is enough — you do not have to complete a pull.
@@ -2519,6 +2527,7 @@
   }
   function moodTick() {
     var now = Date.now();
+    if (!CFG.moods) return;
     if (mood || spinning || granting || celebrating || now < moodNext) return;
     /* settle() clears `spinning` before it starts celebrating, so `spinning` on
        its own does not cover a jackpot's dump or the six seconds of a LUCKY
@@ -2535,22 +2544,17 @@
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
-    /* Charged is rolled FIRST. The two share one quiet period, so whichever is
-       rolled first starves the other — with uneasy at 35% against charged's 10%
-       the good mood was firing about never. Rolling the rarer one first gives it
-       its own odds instead of the leftovers. */
-    if (Math.random() < CFG.charged) return setMood('charged');
-    /* Danger is only worth its name when there is something to take: below five
-       lit it is indistinguishable from Uneasy, and emptying a belly of two is
-       noise rather than drama. */
-    if (lamps >= 5 && Math.random() < CFG.danger) return setMood('danger');
-    /* Flat, because the severity already scales with the belly — charging the
-       endgame twice, more often AND more expensive, is not a difficulty curve,
-       it is a punishment. */
-    if (lamps > 0 && Math.random() < CFG.uneasy) setMood('uneasy');
+    var next = nextMood();
+    /* Danger with little to take is indistinguishable from Uneasy, and emptying
+       a belly of two is noise rather than drama — it waits for a full one. */
+    if (next === 'danger' && lamps < 5) { moodBag.unshift('danger'); return; }
+    if (next !== 'charged' && lamps <= 0) return;    // nothing to lose, nothing to fear
+    setMood(next);
   }
   var settledAt = 0;
-  moodTimer = setInterval(moodTick, MOOD_TICK);
+  /* Four times a second. The rhythm is held by moodNext now rather than by the
+     tick, so a coarse tick would only add slop to every calm period. */
+  moodTimer = setInterval(moodTick, 250);
 
   /* Maco is an invariant plural everywhere else in the machine — "light up all
      Maco", "every Maco set loose" — so it stays one here too. */
@@ -3030,29 +3034,15 @@
       })() +
       /* Two rates and, more usefully, what they actually come to — a percent per
          three seconds per lamp means nothing until it is a wait in seconds. */
+      /* Arithmetic, not an estimate: calm 3-5s then a mood 3-5s, so a mood
+         every ~8s. Uneasy and Charged are in every bag, Danger in every third,
+         which makes a round five moods long. */
       '<h3>Mood</h3><table>' +
-        '<tr><td>Uneasy &mdash; per 3s</td><td>' +
-          step('uneasy', 0.01, (CFG.uneasy * 100).toFixed(0) + '%') + '</td></tr>' +
-        '<tr><td>Danger &mdash; per 3s</td><td>' +
-          step('danger', 0.01, (CFG.danger * 100).toFixed(0) + '%') + '</td></tr>' +
-        '<tr><td>Charged &mdash; per 3s</td><td>' +
-          step('charged', 0.01, (CFG.charged * 100).toFixed(0) + '%') + '</td></tr>' +
-        /* The gap between one and the next, not the wait before one starts: a
-           mood runs 3-5s and is followed by 8-25s of enforced quiet, so about 20
-           seconds of every cycle is spoken for before the dice are rolled again.
-           Reporting only the dice made 35% read as every 9s when it is every 29.
-           Seconds of watchable time — rolls are thrown away while the reels
-           spin, during a celebration and for 2s after a result — so wall-clock
-           feels roughly twice this while you are playing. */
-        '<tr><td>Uneasy</td><td>' +
-          (CFG.uneasy > 0 ? '~' + Math.round(3 / CFG.uneasy * 2.3 + 4) + 's' : 'off') +
-          '</td></tr>' +
-        '<tr><td>Danger</td><td>' +
-          (CFG.danger > 0 ? '~' + Math.round(3 / CFG.danger * 2.3 + 4) + 's, at 5+ lit'
-                          : 'off') + '</td></tr>' +
-        '<tr><td>Charged</td><td>' +
-          (CFG.charged > 0 ? '~' + Math.round(3 / CFG.charged * 2.3 + 4) + 's' : 'off') +
-          '</td></tr>' +
+        '<tr><td>Moods</td><td>' + (CFG.moods ? 'On' : 'Off') + '</td></tr>' +
+        '<tr><td>Calm, then a mood</td><td>3&ndash;5s each</td></tr>' +
+        '<tr><td>Any mood</td><td>~8s</td></tr>' +
+        '<tr><td>Uneasy &middot; Charged</td><td>~16s</td></tr>' +
+        '<tr><td>Danger</td><td>~48s, at 5+ lit</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
