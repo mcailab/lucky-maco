@@ -2626,9 +2626,14 @@
     marquee.classList.add('fast');
     $('.window').classList.add('live');
     restock();
-    sClunk(); hPull();
-    arm.style.transition = 'transform .55s cubic-bezier(.4,1.6,.5,1)';
-    armFree(180);                                // knob swings down to the floor
+    /* Instantly, with no easing. A lever that swings gracefully to the floor
+       reads as an animation; one that is simply pointing the wrong way the
+       moment you touch it reads as broken, which is the joke. */
+    arm.style.transition = 'none';
+    armFree(180);
+    noise(0.05, 0.42, 800, 3, 180);              // the clack of it giving way
+    tone(110, 0.28, 'square', 0.13, 55);
+    buzz([70, 40, 30]);
     var CELL = cellPx();
     rollAnims = [];
     strips.forEach(function (strip, i) {
@@ -2946,7 +2951,7 @@
       var deg = angleTo(e.clientX, e.clientY);
       arm.style.transition = 'none';
       armFree(deg);
-      if (deg < 14) stopRoll();                 // back at the top: it stops
+      if (deg < 8) stopRoll();                  // all the way back to the top, by hand
       return;
     }
     var dy = e.clientY - y0;
