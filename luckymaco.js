@@ -460,9 +460,7 @@
     'transform-origin:50% 60%}',
     '.marquee.charged .bulb{animation:flash .18s steps(1) infinite}',
     '.marquee.charged .mglow::before{animation-duration:.6s}',
-    /* the lever looks unusable while the machine is unhappy */
-    '.lever.cold .knob{filter:grayscale(.75) brightness(.7)}',
-    '.lever.cold .arm{filter:brightness(.8)}',
+
     /* the Macoji that is about to fall — shaking is bad, bouncing is good, and
        they are deliberately nothing like each other */
     /* The movement is the whole signal — no colour behind it, no glow on it.
@@ -2373,7 +2371,6 @@
     moodCells = [];
     marquee.classList.remove('danger', 'charged');
     cab.classList.remove('alarm');
-    lever.classList.remove('cold');
     var lit = belly.querySelectorAll('.lamp.atrisk');
     for (i = 0; i < lit.length; i++) lit[i].classList.remove('atrisk');
     mood = '';
@@ -2389,7 +2386,6 @@
       moodCells = windowCells();
       cells = moodCells;
       cab.classList.add('alarm');
-      lever.classList.add('cold');
       for (i = 0; i < cells.length; i++) cells[i].classList.add('jitter');
       var lit = belly.querySelectorAll('.lamp.lit');
       for (i = 0; i < lit.length; i++) lit[i].classList.add('atrisk');
@@ -2406,9 +2402,9 @@
         cells[i] = cells[j]; cells[j] = t;
       }
       moodCells = cells.slice(0, n);
-      /* The Macoji alone. No glass, and no change to the lever either — the red
-         and the cold knob both belong to Danger, so that when they do appear
-         they mean one thing. */
+      /* The Macoji alone. The lever is never touched by any mood — it looks the
+         same whatever the machine is feeling, so it is always the same thing to
+         reach for. */
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('jitter', 'soft');
       setTimeout(function () {                      // a tremble, then the real thing
         if (mood !== 'uneasy') return;
@@ -2442,7 +2438,6 @@
     for (var i = 0; i < all.length; i++) lit.push(all[i]);
     clearMood();
     celebrating = true;
-    lever.classList.add('busy');
     marquee.classList.add('danger');               // now, and only now
     cab.classList.add('alarm');
     restart(cab, 'comeapart', 'jackpot');
@@ -2477,7 +2472,6 @@
       cab.classList.remove('alarm');
       fillIn();
       celebrating = false;
-      lever.classList.remove('busy');
     }, last + 1300);
     return true;
   }
@@ -2487,8 +2481,10 @@
     if (mood !== 'uneasy') return false;
     var cells = moodCells.slice(), n = cells.length;
     clearMood();
-    celebrating = true;                            // no pull lands on top of this
-    lever.classList.add('busy');
+    /* `celebrating` already turns pulls away, so the lever needs no `busy`
+       class — that fades it to 40%, and the lever should look the same whatever
+       the machine is doing. */
+    celebrating = true;
     /* The red glass belongs to this moment and no other: not to the warning,
        only to them actually coming out. */
     marquee.classList.add('danger');
@@ -2529,7 +2525,6 @@
       marquee.classList.remove('danger');
       fillIn();                                    // hopper pours, reels drop from the top
       celebrating = false;
-      lever.classList.remove('busy');
     }, last + 1500);
     return true;
   }
