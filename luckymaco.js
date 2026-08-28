@@ -2533,12 +2533,19 @@
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
-    var next = MOODS[Math.floor(Math.random() * MOODS.length)];
-    /* Danger with little to take is indistinguishable from Uneasy, and emptying
-       a belly of two is noise rather than drama — it waits for a full one. */
-    if (next === 'danger' && lamps < 5) return;
-    if (next !== 'charged' && lamps <= 0) return;    // nothing to lose, nothing to fear
-    setMood(next);
+    /* Draw from what is actually possible, not from all three and then discard.
+       Discarding looked fair and was not: with nothing lit, Uneasy and Danger
+       have nothing to take, so two of the three draws were thrown away and the
+       tick simply rolled again 250ms later until Charged came up. The result was
+       a machine that appeared to be permanently charged.
+
+         nothing lit   charged only          — there is nothing to lose yet
+         1 to 4 lit    uneasy, charged       — too little for Danger to mean it
+         5 or more     all three             */
+    var pool = ['charged'];
+    if (lamps > 0) pool.push('uneasy');
+    if (lamps >= 5) pool.push('danger');
+    setMood(pool[Math.floor(Math.random() * pool.length)]);
   }
   var settledAt = 0;
   /* Four times a second. The rhythm is held by moodNext now rather than by the
@@ -3030,8 +3037,11 @@
         '<tr><td>Moods</td><td>' + (CFG.moods ? 'On' : 'Off') + '</td></tr>' +
         '<tr><td>Calm, then a mood</td><td>2&ndash;5s each</td></tr>' +
         '<tr><td>Something happens</td><td>~7s</td></tr>' +
-        '<tr><td>Each of the three</td><td>~21s</td></tr>' +
-        '<tr><td>Danger needs</td><td>5+ lit</td></tr>' +
+        /* Which moods are possible depends on what there is to lose, so the
+           share each one gets depends on it too. */
+        '<tr><td>Nothing lit</td><td>Charged only</td></tr>' +
+        '<tr><td>1&ndash;4 lit</td><td>Charged, Uneasy &mdash; ~14s each</td></tr>' +
+        '<tr><td>5+ lit</td><td>all three &mdash; ~21s each</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
