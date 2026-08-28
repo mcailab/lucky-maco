@@ -2328,6 +2328,18 @@
   function moodTick() {
     var now = Date.now();
     if (mood || spinning || granting || unlocked || now < moodNext) return;
+    /* settle() clears `spinning` before it starts celebrating, so `spinning` on
+       its own does not cover a jackpot's dump or the six seconds of a LUCKY
+       MACO release. Worse, the belly is still full during a release, which is
+       exactly when uneasy is most likely to fire — the top glass would turn red
+       in the middle of the biggest thing the machine does. A celebration is
+       recognisable by what it leaves on screen: a pile on the floor, dark
+       reels, or Maco standing in the window. */
+    if (dumpBox.children.length || lastMaco ||
+        $('.window').classList.contains('emptied')) return;
+    /* And not while nobody is looking — a widget sitting closed behind a button
+       should not come back red. */
+    if (!scrim.classList.contains('on')) return;
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
