@@ -2398,10 +2398,12 @@
   var settledAt = 0;
   moodTimer = setInterval(moodTick, MOOD_TICK);
 
+  /* Maco is an invariant plural everywhere else in the machine — "light up all
+     Maco", "every Maco set loose" — so it stays one here too. */
   function lostLine(n) {
-    var head = n >= 3 ? 'All three got away!'
-             : n === 2 ? 'Two got away!'
-             : 'One got away!';
+    var head = n >= 3 ? 'All 3 escaped!'
+             : n === 2 ? '2 Maco escaped!'
+             : '1 Maco escaped!';
     return '<b>' + LOSTMACO + head + '</b>';
   }
 
