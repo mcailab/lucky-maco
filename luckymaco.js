@@ -2369,7 +2369,16 @@
     var mine = moodUntil;
     setTimeout(function () { if (mood && moodUntil === mine) clearMood(); },
                moodUntil - Date.now());
-    moodNext = moodUntil + rnd(8000, 25000);        // and never the same gap twice
+    /* The quiet has to scale with the setting, or it becomes the floor and the
+       dial stops meaning anything: a flat 8-25s made 60% behave almost exactly
+       like 35%, because 11-30 seconds of every cycle was spoken for before the
+       dice were rolled at all. It is now a multiple of the wait the setting
+       implies, so turning the dial up genuinely speeds the whole rhythm. */
+    /* Paced by whichever mood is set to come round fastest, because the quiet
+       gates BOTH. Basing it on the mood that just fired meant a charged spell at
+       10% imposed up to a minute of silence and starved uneasy at 60%. */
+    var wait = 3000 / Math.max(0.01, CFG.uneasy, CFG.charged);
+    moodNext = moodUntil + rnd(0.6, 2.0) * wait;    // and never the same gap twice
   }
 
   /* Touching the lever at all is enough — you do not have to complete a pull.
@@ -2943,10 +2952,10 @@
            spin, during a celebration and for 2s after a result — so wall-clock
            feels roughly twice this while you are playing. */
         '<tr><td>Uneasy</td><td>' +
-          (CFG.uneasy > 0 ? '~' + Math.round(3 / CFG.uneasy + 20) + 's' : 'off') +
+          (CFG.uneasy > 0 ? '~' + Math.round(3 / CFG.uneasy * 2.3 + 4) + 's' : 'off') +
           '</td></tr>' +
         '<tr><td>Charged</td><td>' +
-          (CFG.charged > 0 ? '~' + Math.round(3 / CFG.charged + 20) + 's' : 'off') +
+          (CFG.charged > 0 ? '~' + Math.round(3 / CFG.charged * 2.3 + 4) + 's' : 'off') +
           '</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
