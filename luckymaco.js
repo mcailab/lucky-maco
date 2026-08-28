@@ -3009,7 +3009,7 @@
   function resetAll() {
     /* 1. stop the show */
     gen++;                             // everything in flight is now stale
-    clearMood(); moodNext = Date.now() + MOOD_QUIET;
+    clearMood(); moodNext = Date.now() + 12000;   // a beat of calm after a reset
     if (flashTimer) { clearTimeout(flashTimer); flashTimer = null; }
     $('.toast').classList.remove('on');
     var junk = root.querySelectorAll('.bigmaco, .wild');
