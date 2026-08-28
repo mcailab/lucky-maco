@@ -70,7 +70,7 @@
   var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
                 stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6],
-                uneasy: [0, 0.60], charged: [0, 0.40] };
+                uneasy: [0, 1], charged: [0, 1] };   // 100% = every roll
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
