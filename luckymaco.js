@@ -54,6 +54,9 @@
     shake:    true,             // shake-to-pull on mobile
     shakeForce: 18,             // how hard a shake must be. Measured as CHANGE in
                                 // acceleration, so a still phone reads ~0. Range 8-60.
+    uneasy:   0.015,            // chance per lit Maco, every 3s, that the machine
+                                // turns uneasy. 0 switches moods off entirely.
+    charged:  0.04,             // chance every 3s of the opposite — a long spin
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -63,7 +66,8 @@
   var NUM = { triple: 1, twins: 1, nearMiss: 1 };
   var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
-                stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6] };
+                stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6],
+                uneasy: [0, 0.08], charged: [0, 0.25] };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -2289,10 +2293,15 @@
 
      CHARGED is the mirror of it — same machinery, opposite sign. */
   var MOOD_TICK = 3000;          // how often the machine considers its mood
-  var UNEASY_MS = 3000, CHARGED_MS = 4000, MOOD_QUIET = 12000;
-  var UNEASY_PER_LAMP = 0.015;   // 10 lamps -> 15% a tick -> roughly every 3rd pull
-  var CHARGED_P = 0.04;
-  var mood = '', moodCell = null, moodUntil = 0, moodNext = 0, moodTimer = null;
+  var CHARGED_MS = 4000;
+  var mood = '', moodCells = [], moodUntil = 0, moodNext = 0, moodTimer = null;
+  /* How many shake, and therefore how many you lose: the machine shows the price
+     before you pay it. One rule for how often, one for how much, one for how
+     long, and none of them overlap. */
+  function atStake() {
+    return lamps <= 0 ? 0 : lamps <= 3 ? 1 : lamps <= 6 ? 2 : 3;
+  }
+  function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
   function paylineCells() {
     var out = [];
@@ -2303,7 +2312,10 @@
     return out;
   }
   function clearMood() {
-    if (moodCell) { moodCell.classList.remove('jitter', 'soft', 'bouncey'); moodCell = null; }
+    for (var i = 0; i < moodCells.length; i++) {
+      moodCells[i].classList.remove('jitter', 'soft', 'bouncey');
+    }
+    moodCells = [];
     marquee.classList.remove('uneasy', 'charged');
     lever.classList.remove('cold');
     mood = '';
@@ -2311,32 +2323,57 @@
   function setMood(next) {
     clearMood();
     mood = next;
-    var cells = paylineCells();
-    moodCell = cells[Math.floor(Math.random() * cells.length)] || null;
+    var cells = paylineCells(), i;
     if (next === 'uneasy') {
+      var n = Math.min(atStake() || 1, cells.length);
+      /* Shuffle so it is not always the same reels that get nervous. */
+      for (i = cells.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1)), t = cells[i];
+        cells[i] = cells[j]; cells[j] = t;
+      }
+      moodCells = cells.slice(0, n);
       marquee.classList.add('uneasy');
       lever.classList.add('cold');
-      if (moodCell) {
-        moodCell.classList.add('jitter', 'soft');   // a tremble first
-        setTimeout(function () {
-          if (mood === 'uneasy' && moodCell) moodCell.classList.remove('soft');
-        }, 500);
-      }
+      for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('jitter', 'soft');
+      setTimeout(function () {                      // a tremble, then the real thing
+        if (mood !== 'uneasy') return;
+        for (var k = 0; k < moodCells.length; k++) moodCells[k].classList.remove('soft');
+      }, 500);
       sUneasy();
-      moodUntil = Date.now() + UNEASY_MS;
-      setTimeout(function () { if (mood === 'uneasy') clearMood(); }, UNEASY_MS);
+      moodUntil = Date.now() + rnd(3000, 5000);     // never the same length twice
     } else {
+      moodCells = [cells[Math.floor(Math.random() * cells.length)]].filter(Boolean);
       marquee.classList.add('charged');
-      if (moodCell) moodCell.classList.add('bouncey');
+      for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('bouncey');
       sCharged();
       moodUntil = Date.now() + CHARGED_MS;
-      setTimeout(function () { if (mood === 'charged') clearMood(); }, CHARGED_MS);
     }
-    moodNext = moodUntil + MOOD_QUIET;
+    var mine = moodUntil;
+    setTimeout(function () { if (mood && moodUntil === mine) clearMood(); },
+               moodUntil - Date.now());
+    moodNext = moodUntil + rnd(8000, 25000);        // and never the same gap twice
+  }
+
+  /* Touching the lever at all is enough. You do not have to complete a pull —
+     the machine is already shaking, and a nudge is what shakes them loose. */
+  function shakeLoose() {
+    if (mood !== 'uneasy') return 0;
+    var cells = moodCells.slice(), n = cells.length;
+    clearMood();
+    restart(cab, 'judder', 'jackpot');
+    buzz([35, 45, 35, 45, 110, 60, 200]);          // the machine coming apart
+    sShakeLoose();
+    for (var i = 0; i < cells.length; i++) {
+      (function (c, d) { setTimeout(function () { dropOne(c); }, d); })(cells[i], i * 130);
+    }
+    var lost = Math.min(n, lamps);
+    if (lost > 0) { lamps -= lost; drawLamps(); saveLamps(); }
+    setTimeout(function () { toast(lostLine(lost), 2400); }, 620);
+    return n;
   }
   function moodTick() {
     var now = Date.now();
-    if (mood || spinning || granting || celebrating || unlocked || now < moodNext) return;
+    if (mood || spinning || granting || celebrating || now < moodNext) return;
     /* settle() clears `spinning` before it starts celebrating, so `spinning` on
        its own does not cover a jackpot's dump or the six seconds of a LUCKY
        MACO release. Worse, the belly is still full during a release, which is
@@ -2352,11 +2389,21 @@
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
-    if (lamps > 0 && Math.random() < UNEASY_PER_LAMP * lamps) return setMood('uneasy');
-    if (Math.random() < CHARGED_P) setMood('charged');
+    /* Flat, because the severity already scales with the belly — charging the
+       endgame twice, more often AND more expensive, is not a difficulty curve,
+       it is a punishment. */
+    if (lamps > 0 && Math.random() < CFG.uneasy) return setMood('uneasy');
+    if (Math.random() < CFG.charged) setMood('charged');
   }
   var settledAt = 0;
   moodTimer = setInterval(moodTick, MOOD_TICK);
+
+  function lostLine(n) {
+    var head = n >= 3 ? 'All three got away!'
+             : n === 2 ? 'Two got away!'
+             : 'One got away!';
+    return '<b>' + LOSTMACO + head + '</b>';
+  }
 
   /* One Macoji shaken loose: it falls out of its cell, down past the machine and
      off the page, and takes a lamp with it. */
@@ -2400,9 +2447,10 @@
     var reloading = dumpBox.children.length > 0 ||
                     $('.window').classList.contains('emptied');
     restock();                                   // sweep the floor, reload the machine
-    /* Read it before anything clears it, and act on it after the reels are on
-       their way — the spin is never taken away from you. */
-    var pulledInto = mood, shaken = moodCell;
+    /* A click, the space bar, a shake, the API — none of them drag the arm, so
+       the nudge handler never sees them. They pay here instead. */
+    var pulledInto = mood;
+    shakeLoose();
     clearMood();
     sClunk(); hPull();
     var res = draw(force);
@@ -2419,17 +2467,6 @@
     for (var d = 0; d < 3; d++) dur[d] = Math.round(dur[d] * CFG.spinSpeed * boost);
     stopSpinSound();
     sSpin(dur[2]);
-    if (pulledInto === 'uneasy') {
-      /* You were told. The pull stands and still pays; the lamp is the cost. */
-      restart(cab, 'judder', 'jackpot');
-      buzz([30, 40, 30, 40, 90]);
-      sShakeLoose();
-      dropOne(shaken);
-      if (lamps > 0) {
-        lamps--; drawLamps(); saveLamps();
-        setTimeout(function () { toast('<b>' + LOSTMACO + 'One got away</b>', 2200); }, 700);
-      }
-    }
     var CELL = cellPx(), done = 0;
     strips.forEach(function (strip, i) {
       strip.style.transition = 'none';
@@ -2661,6 +2698,7 @@
     moved = Math.max(moved, Math.abs(dy));
     pulled = Math.max(0, Math.min(MAX, dy));
     setArm((pulled / MAX) * DOWN);
+    if (pulled > 4) shakeLoose();               // a nudge is enough while it shakes
     var armed = pulled >= FIRE;
     if (armed !== lever.classList.contains('ready')) {
       lever.classList.toggle('ready', armed);
@@ -2831,6 +2869,20 @@
               (Math.round(k * 100) / 100) + ' before there is nothing left to win from.</p>'
             : '');
       })() +
+      /* Two rates and, more usefully, what they actually come to — a percent per
+         three seconds per lamp means nothing until it is a wait in seconds. */
+      '<h3>Mood</h3><table>' +
+        '<tr><td>Uneasy &mdash; per lit Maco</td><td>' +
+          step('uneasy', 0.005, (CFG.uneasy * 100).toFixed(1) + '%') + '</td></tr>' +
+        '<tr><td>Charged</td><td>' +
+          step('charged', 0.01, (CFG.charged * 100).toFixed(0) + '%') + '</td></tr>' +
+        '<tr><td>Uneasy at ' + LAMPS + ' lit</td><td>' +
+          (CFG.uneasy > 0 ? 'about every ' +
+            Math.round(3 / (CFG.uneasy * LAMPS)) + 's' : 'off') + '</td></tr>' +
+        '<tr><td>Charged</td><td>' +
+          (CFG.charged > 0 ? 'about every ' +
+            Math.round(3 / CFG.charged) + 's' : 'off') + '</td></tr>' +
+      '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
         '<tr><td>Rows</td><td>' + CFG.rows + '</td></tr>' +
@@ -3087,7 +3139,6 @@
     /* One line. The breathing cog says where to go next, so the second line was
        telling you something the interface already shows. */
     $('.cog').classList.toggle('unlocked', on);
-    if (on) clearMood();                        // Game Changer has no moods
     luck.classList.toggle('locked', !on);       // the switch is there either way
     setLuck(on ? TOP : 0, true);                // unlocked arrives charged, locked empty
     if (!on) rearm(); else sharePitch();        // Game Changer has nothing to earn
