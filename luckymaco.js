@@ -2046,6 +2046,13 @@
 
   function wildfire() {
     var myGen = gen, live = function () { return myGen === gen; };
+    /* settle() frees the lever before the celebrations run, so for the six
+       seconds of this the machine looked idle and would take another pull. The
+       release's remaining steps then landed on top of that pull — emptying the
+       hopper mid-spin, darkening the reels, and writing LUCKY MACO! over
+       whatever had just come up. Hold the lever until he has finished. */
+    celebrating = true;
+    lever.classList.add('busy');
     /* One pattern for the whole sequence: navigator.vibrate replaces whatever is
        running, so staged calls would cut each other off. */
     buzz([55, 75, 55, 75, 55, 75, 55, 75, 55, 280,
@@ -2165,6 +2172,8 @@
       $('.share').classList.remove('off');
       $('.progress').classList.add('off');
       setTimeout(prepareCard, 90);
+      celebrating = false;
+      lever.classList.remove('busy');
     }, lastAt + lastAtPause + 1150);
   }
 
@@ -2327,7 +2336,7 @@
   }
   function moodTick() {
     var now = Date.now();
-    if (mood || spinning || granting || unlocked || now < moodNext) return;
+    if (mood || spinning || granting || celebrating || unlocked || now < moodNext) return;
     /* settle() clears `spinning` before it starts celebrating, so `spinning` on
        its own does not cover a jackpot's dump or the six seconds of a LUCKY
        MACO release. Worse, the belly is still full during a release, which is
@@ -2376,8 +2385,9 @@
   }
 
   /* ── spin ─────────────────────────────────────────────────────────────── */
+  var celebrating = false;
   function spin(force) {
-    if (spinning || granting) return;
+    if (spinning || granting || celebrating) return;
     pulledOnce = true; lever.classList.remove('hint');
     spinning = true;
     lever.classList.add('busy');
@@ -2955,6 +2965,7 @@
     lastMaco = null;
     granting = false;
     spinning = false;
+    celebrating = false;
     lever.classList.remove('busy');
     marquee.classList.remove('fast', 'allon', 'lit1', 'lit2', 'litJ', 'litG');
     $('.window').classList.remove('live', 'emptied');
