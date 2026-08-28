@@ -2413,8 +2413,9 @@
       sUneasy();
     } else {
       moodCells = [cells[Math.floor(Math.random() * cells.length)]].filter(Boolean);
-      marquee.classList.add('charged');
-      for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('bouncey');
+      /* Charged shows nothing at all. It is a state you discover by touching
+         the lever, and what the lever then does is the whole reveal. */
+      moodCells = [];
       sCharged();
     }
     moodUntil = Date.now() + rnd(MOOD_MIN, MOOD_MAX);
@@ -2531,7 +2532,7 @@
   function moodTick() {
     var now = Date.now();
     if (!CFG.moods) return;
-    if (mood || spinning || granting || celebrating || now < moodNext) return;
+    if (mood || spinning || granting || celebrating || rolling || now < moodNext) return;
     /* settle() clears `spinning` before it starts celebrating, so `spinning` on
        its own does not cover a jackpot's dump or the six seconds of a LUCKY
        MACO release. Worse, the belly is still full during a release, which is
@@ -2606,10 +2607,92 @@
     setTimeout(function () { el.remove(); }, 1300);
   }
 
+  /* ── the free roll ────────────────────────────────────────────────────────
+     Charged turns the lever into a rotary switch. Nudge it and the arm swings a
+     full half-turn until the knob points at the floor, and the reels run without
+     stopping. They only stop when you walk the arm back up the other way — and
+     because the arm follows the pointer's angle around its own pivot, the same
+     gesture works with a mouse and with a thumb.
+
+     The strip is made seamless for this: the first ROWS cells are cloned onto
+     the end, so translating by the whole strip length and looping lands exactly
+     where it started and the join cannot be seen. */
+  var rolling = false, rollAnims = [], rollRes = null;
+  function armFree(deg) {                        // no shrink: this is a full turn
+    arm.style.transform = 'rotate(' + deg + 'deg)';
+    knob.style.transform = 'none';
+  }
+  function armPivot() {
+    var b = lever.getBoundingClientRect();
+    return { x: b.left + 28.5, y: b.bottom - 6 };
+  }
+  function angleTo(x, y) {
+    var p = armPivot(), deg = Math.atan2(x - p.x, p.y - y) * 180 / Math.PI;
+    return Math.max(0, Math.min(180, deg));
+  }
+  function startRoll() {
+    if (rolling || spinning || celebrating) return false;
+    rolling = true;
+    clearMood();
+    rollRes = draw();                            // decided now, revealed when you stop
+    idleShowing = false;
+    msg.className = 'msg';
+    msg.innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
+    marquee.classList.add('fast');
+    $('.window').classList.add('live');
+    restock();
+    sClunk(); hPull();
+    arm.style.transition = 'transform .55s cubic-bezier(.4,1.6,.5,1)';
+    armFree(180);                                // knob swings down to the floor
+    var CELL = cellPx();
+    rollAnims = [];
+    strips.forEach(function (strip, i) {
+      strip.style.transition = 'none';
+      strip.style.transform = '';
+      strip.innerHTML = cells(STRIP);
+      for (var k = 0; k < ROWS; k++) {           // the seam
+        strip.appendChild(strip.children[k].cloneNode(true));
+      }
+      rollAnims.push(strip.animate(
+        [{ transform: 'translateY(0)' },
+         { transform: 'translateY(-' + (STRIP * CELL) + 'px)' }],
+        { duration: STRIP * 46 + i * 4, iterations: Infinity, easing: 'linear' }));
+    });
+    sSpin(60000);
+    return true;
+  }
+  function stopRoll() {
+    if (!rolling) return;
+    rolling = false;
+    for (var a = 0; a < rollAnims.length; a++) { try { rollAnims[a].cancel(); } catch (e) {} }
+    rollAnims = [];
+    arm.style.transition = 'transform .5s cubic-bezier(.34,1.8,.5,1)';
+    armFree(0);
+    setTimeout(function () { setArm(0); }, 520);  // hand the arm back to the normal one
+    var res = rollRes || draw();
+    rollRes = null;
+    spinning = true;
+    var CELL = cellPx(), done = 0, dur = [620, 900, 1180];
+    stopSpinSound();
+    strips.forEach(function (strip, i) {
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateY(0)';
+      strip.innerHTML = cells(STRIP, res.reels[i], AT);
+      void strip.offsetHeight;
+      strip.style.transition = 'transform ' + dur[i] + 'ms cubic-bezier(.4,.1,.2,1)';
+      strip.style.transform = 'translateY(-' + (TRAIL * CELL) + 'px)';
+      var myGen = gen;
+      setTimeout(function () {
+        if (myGen !== gen) return;
+        sStop(); hStop(); if (++done === 3) settle(res);
+      }, dur[i] + 50);
+    });
+  }
+
   /* ── spin ─────────────────────────────────────────────────────────────── */
   var celebrating = false;
   function spin(force) {
-    if (spinning || granting || celebrating) return;
+    if (spinning || granting || celebrating || rolling) return;
     pulledOnce = true; lever.classList.remove('hint');
     /* Before anything else. A click, the space bar, a shake or the API never
        drag the arm, so the nudge handler never sees them — they arrive here.
@@ -2860,7 +2943,7 @@
     }, 3500);
   }
   lever.addEventListener('pointerdown', function (e) {
-    if (spinning) return;
+    if (spinning || celebrating) return;
     dragging = true; y0 = e.clientY; pulled = 0; moved = 0; t0 = Date.now();
     lever.classList.add('dragging');
     lever.classList.remove('hint');
@@ -2871,10 +2954,21 @@
   });
   lever.addEventListener('pointermove', function (e) {
     if (!dragging) return;
+    /* While it is running free the arm follows the pointer's angle around its own
+       pivot rather than a vertical drag — that is what makes it a switch you turn
+       instead of a handle you pull, and it behaves the same under a thumb. */
+    if (rolling) {
+      var deg = angleTo(e.clientX, e.clientY);
+      arm.style.transition = 'none';
+      armFree(deg);
+      if (deg < 14) stopRoll();                 // back at the top: it stops
+      return;
+    }
     var dy = e.clientY - y0;
     moved = Math.max(moved, Math.abs(dy));
     pulled = Math.max(0, Math.min(MAX, dy));
     setArm((pulled / MAX) * DOWN);
+    if (pulled > 4 && mood === 'charged' && startRoll()) return;
     if (pulled > 4) shakeLoose();               // a nudge is enough while it shakes
     var armed = pulled >= FIRE;
     if (armed !== lever.classList.contains('ready')) {
@@ -2887,8 +2981,14 @@
     dragging = false;
     lever.classList.remove('dragging');
     lever.classList.remove('ready');
+    /* Letting go mid-turn leaves it running — the only way out is to finish the
+       turn. It springs to wherever it was left, so it never snaps back on you. */
+    if (rolling) return;
     arm.style.transition = 'transform .6s cubic-bezier(.34,1.8,.5,1)';   // the bounce back
     var ms = Math.max(1, Date.now() - t0);
+    /* A click has no drag in it, so the rotary gimmick never sees it — charged
+       has to be caught here too. */
+    if (moved < TAP && mood === 'charged' && startRoll()) return;
     var fires = pulled >= FIRE                     // pulled far enough
              || (pulled / ms) > FLICK              // flicked down fast
              || moved < TAP;                       // just clicked it
@@ -3195,6 +3295,14 @@
     granting = false;
     spinning = false;
     celebrating = false;
+    if (rolling) {
+      rolling = false;
+      for (var ra = 0; ra < rollAnims.length; ra++) {
+        try { rollAnims[ra].cancel(); } catch (e) {}
+      }
+      rollAnims = []; rollRes = null;
+      arm.style.transition = 'none'; setArm(0);
+    }
     lever.classList.remove('busy');
     marquee.classList.remove('fast', 'allon', 'lit1', 'lit2', 'litJ', 'litG');
     $('.window').classList.remove('live', 'emptied');
