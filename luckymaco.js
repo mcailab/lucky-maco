@@ -2398,11 +2398,9 @@
       }, 500);
     } else {
       moodCells = [cells[Math.floor(Math.random() * cells.length)]].filter(Boolean);
-      /* The gold glass and nothing else — no bouncing face. It is the one mood
-         that colours the machine while it is happening, and what the lever does
-         when you touch it is the rest of the reveal. */
+      /* Charged shows nothing while it waits. The gold is saved for the free
+         run itself, where it has something to celebrate. */
       moodCells = [];
-      marquee.classList.add('charged');
       sCharged();
     }
     moodUntil = Date.now() + rnd(MOOD_MIN, MOOD_MAX);
@@ -2623,6 +2621,9 @@
     idleShowing = false;
     msg.className = 'msg';
     msg.innerHTML = '<b>&nbsp;</b><small>&nbsp;</small>';
+    /* Gold, flashing, for as long as the reels run — the glass is part of the
+       gimmick rather than a warning that it is coming. */
+    marquee.classList.add('charged');
     marquee.classList.add('fast');
     $('.window').classList.add('live');
     restock();
@@ -2654,6 +2655,7 @@
   function stopRoll() {
     if (!rolling) return;
     rolling = false;
+    marquee.classList.remove('charged');
     for (var a = 0; a < rollAnims.length; a++) { try { rollAnims[a].cancel(); } catch (e) {} }
     rollAnims = [];
     arm.style.transition = 'transform .5s cubic-bezier(.34,1.8,.5,1)';
@@ -3291,6 +3293,7 @@
         try { rollAnims[ra].cancel(); } catch (e) {}
       }
       rollAnims = []; rollRes = null;
+      marquee.classList.remove('charged');
       arm.style.transition = 'none'; setArm(0);
     }
     lever.classList.remove('busy');
