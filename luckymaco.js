@@ -1273,11 +1273,42 @@
        is exact and does not depend on the transform having been composited yet.
        Before any spin the strip is untransformed, so the first rows are showing. */
     var first = lastResult ? TRAIL : 0;
+    /* The machine masks each reel so the rows above and below the payline fade
+       out at the window's edges — the card drew them flat, which made the three
+       rows read as equals and lost the sense of a strip running past. Each reel
+       is composed on its own canvas and masked the same way before it lands. */
     for (i = 0; i < strips.length; i++) {
+      var rrct = reels[i].getBoundingClientRect();
+      var rw = Math.max(1, Math.round(rrct.width * SC));
+      var rh = Math.max(1, Math.round(rrct.height * SC));
+      var rc = document.createElement('canvas');
+      rc.width = rw; rc.height = rh;
+      var rx = rc.getContext('2d');
+      var cellH = cellPx() * SC;
       for (var k = 0; k < ROWS; k++) {
         var cellEl = strips[i].children[first + k];
-        if (cellEl) sprite(cellEl.querySelector('img'), first + k, i);
+        var im = cellEl && cellEl.querySelector('img');
+        if (!im || !im.complete || !im.naturalWidth) continue;
+        var iw = im.offsetWidth * SC, ih = im.offsetHeight * SC;
+        rx.save();
+        rx.translate(rw / 2, (k + 0.5) * cellH);
+        rx.rotate(angleOf(im));
+        rx.drawImage(im, -iw / 2, -ih / 2, iw, ih);
+        rx.restore();
       }
+      if (ROWS > 1) {                              // same stops as the live mask
+        var gm = rx.createLinearGradient(0, 0, 0, rh);
+        gm.addColorStop(0, 'rgba(0,0,0,1)');
+        gm.addColorStop(0.18, 'rgba(0,0,0,.55)');
+        gm.addColorStop(CENTRE / ROWS, 'rgba(0,0,0,0)');
+        gm.addColorStop((CENTRE + 1) / ROWS, 'rgba(0,0,0,0)');
+        gm.addColorStop(0.82, 'rgba(0,0,0,.55)');
+        gm.addColorStop(1, 'rgba(0,0,0,1)');
+        rx.globalCompositeOperation = 'destination-out';
+        rx.fillStyle = gm;
+        rx.fillRect(0, 0, rw, rh);
+      }
+      c.drawImage(rc, (rrct.left - box.left) * SC, (rrct.top - box.top) * SC, rw, rh);
     }
     var bd = rel($('.band'));
     c.strokeStyle = lit; c.lineWidth = 2.5 * SC;
@@ -1380,21 +1411,12 @@
   /* Written so a stranger can follow it. Naming the three parts of the day makes
      the faces mean something without knowing the game, and the same opening on
      every message gives it a shape people recognise after seeing two. */
+  /* The card already shows what happened — three faces, or a machine emptied
+     onto the floor. Spelling it out again in the text made every share a
+     scoreboard entry. One greeting, one invitation, the same for every result,
+     so a losing pull is exactly as worth sending as a jackpot. */
   function shareText() {
-    var r = lastResult, day = today(), tail = '\nTry your luck \u2192 ' + EMBED_HOME;
-    if (!r) return 'Lucky Maco \u2014 a little slot machine that reads your day ' +
-                   'in Maco faces.' + tail;
-    if (r.pattern === 'WILDFIRE') {
-      return 'LUCKY MACO! Ten lamps set every Maco loose \u2014 the rarest thing ' +
-             'the machine does.' + tail;
-    }
-    var line = 'My ' + day + ' on Lucky Maco: ' +
-      label(r.reels[0]) + ' morning, ' +
-      label(r.reels[1]) + ' afternoon, ' +
-      label(r.reels[2]) + ' evening.';
-    if (r.pattern === 'TRIPLE') line += ' Three of a kind is the jackpot.';
-    else if (r.pattern === 'PAIR') line += ' Two of a kind.';
-    return line + tail;
+    return 'Lucky ' + today() + '!\nJoin me to get Lucky Maco \u2192 ' + EMBED_HOME;
   }
 
   /* navigator.share only works while the click's user activation is still live.
