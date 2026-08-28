@@ -465,14 +465,20 @@
     '.lever.cold .arm{filter:brightness(.8)}',
     /* the Macoji that is about to fall — shaking is bad, bouncing is good, and
        they are deliberately nothing like each other */
-    '@keyframes jitter{0%,100%{transform:translate(0,0) rotate(0)}',
-    '20%{transform:translate(-2.5px,1px) rotate(-6deg)}',
-    '40%{transform:translate(2.5px,-1px) rotate(6deg)}',
-    '60%{transform:translate(-2px,1.5px) rotate(-4deg)}',
-    '80%{transform:translate(2px,-1.5px) rotate(4deg)}}',
-    '.cell.jitter img{animation:jitter .16s linear infinite;',
-    'filter:drop-shadow(0 0 7px rgba(228,87,79,.75))}',
-    '.cell.jitter.soft img{animation-duration:.3s;transform:scale(.98)}',
+    /* Uneasy has no glass and no lever any more, so the shake is the entire
+       signal and has to be unmissable on its own: bigger throw, faster, scaled
+       up out of the row, and lit red from underneath. */
+    '@keyframes jitter{0%,100%{transform:translate(0,0) rotate(0) scale(1.1)}',
+    '20%{transform:translate(-4px,2px) rotate(-11deg) scale(1.1)}',
+    '40%{transform:translate(4px,-2px) rotate(11deg) scale(1.1)}',
+    '60%{transform:translate(-3px,2.5px) rotate(-8deg) scale(1.1)}',
+    '80%{transform:translate(3px,-2.5px) rotate(8deg) scale(1.1)}}',
+    '.cell.jitter img{animation:jitter .13s linear infinite;',
+    'filter:drop-shadow(0 0 10px rgba(228,87,79,.95)) brightness(1.12)}',
+    /* the cell behind it glows too, so it reads even at a glance */
+    '.cell.jitter{background:radial-gradient(60% 60% at 50% 55%,',
+    'rgba(228,87,79,.42),transparent 72%)}',
+    '.cell.jitter.soft img{animation-duration:.22s}',
     '@keyframes bouncey{0%,100%{transform:translateY(0) scale(1)}',
     '45%{transform:translateY(-16%) scale(1.06)}}',
     '.cell.bouncey img{animation:bouncey .5s ease-in-out infinite;',
@@ -2538,14 +2544,16 @@
        tick simply rolled again 250ms later until Charged came up. The result was
        a machine that appeared to be permanently charged.
 
-         nothing lit   charged only   — there is nothing to lose yet
-         anything lit  all three, one in three each
+         nothing lit   no moods at all
+         1 to 9 lit    all three, one in three each
 
        Danger used to wait for five lit, which sounded reasonable and was not:
        Uneasy eats one to three at a time, so a belly rarely climbs past four,
        and Danger simply never came. */
-    var pool = ['charged'];
-    if (lamps > 0) { pool.push('uneasy'); pool.push('danger'); }
+    /* An empty belly means the machine has nothing to say. Charged used to fill
+       the silence, which made a new player think Charged was the only mood. */
+    if (lamps <= 0) return;
+    var pool = ['charged', 'uneasy', 'danger'];
     setMood(pool[Math.floor(Math.random() * pool.length)]);
   }
   var settledAt = 0;
@@ -3040,8 +3048,8 @@
         '<tr><td>Something happens</td><td>~7s</td></tr>' +
         /* Which moods are possible depends on what there is to lose, so the
            share each one gets depends on it too. */
-        '<tr><td>Nothing lit</td><td>Charged only</td></tr>' +
-        '<tr><td>Anything lit</td><td>all three &mdash; ~21s each</td></tr>' +
+        '<tr><td>Nothing lit</td><td>always settled</td></tr>' +
+        '<tr><td>1&ndash;9 lit</td><td>all three &mdash; ~21s each</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
