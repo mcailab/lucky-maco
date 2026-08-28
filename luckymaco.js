@@ -2394,10 +2394,9 @@
         cells[i] = cells[j]; cells[j] = t;
       }
       moodCells = cells.slice(0, n);
-      /* No glass. The red belongs to Danger, so that when it does light up it
-         means one thing only. Uneasy is the Macoji alone — and the lever going
-         cold, because that is the thing you are about to touch. */
-      lever.classList.add('cold');
+      /* The Macoji alone. No glass, and no change to the lever either — the red
+         and the cold knob both belong to Danger, so that when they do appear
+         they mean one thing. */
       for (i = 0; i < moodCells.length; i++) moodCells[i].classList.add('jitter', 'soft');
       setTimeout(function () {                      // a tremble, then the real thing
         if (mood !== 'uneasy') return;
@@ -2539,12 +2538,14 @@
        tick simply rolled again 250ms later until Charged came up. The result was
        a machine that appeared to be permanently charged.
 
-         nothing lit   charged only          — there is nothing to lose yet
-         1 to 4 lit    uneasy, charged       — too little for Danger to mean it
-         5 or more     all three             */
+         nothing lit   charged only   — there is nothing to lose yet
+         anything lit  all three, one in three each
+
+       Danger used to wait for five lit, which sounded reasonable and was not:
+       Uneasy eats one to three at a time, so a belly rarely climbs past four,
+       and Danger simply never came. */
     var pool = ['charged'];
-    if (lamps > 0) pool.push('uneasy');
-    if (lamps >= 5) pool.push('danger');
+    if (lamps > 0) { pool.push('uneasy'); pool.push('danger'); }
     setMood(pool[Math.floor(Math.random() * pool.length)]);
   }
   var settledAt = 0;
@@ -3040,8 +3041,7 @@
         /* Which moods are possible depends on what there is to lose, so the
            share each one gets depends on it too. */
         '<tr><td>Nothing lit</td><td>Charged only</td></tr>' +
-        '<tr><td>1&ndash;4 lit</td><td>Charged, Uneasy &mdash; ~14s each</td></tr>' +
-        '<tr><td>5+ lit</td><td>all three &mdash; ~21s each</td></tr>' +
+        '<tr><td>Anything lit</td><td>all three &mdash; ~21s each</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
