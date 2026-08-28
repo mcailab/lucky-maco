@@ -58,8 +58,8 @@
        with the belly, so the frequency must not. This was left at the old
        per-lamp figure of 0.015 when the formula went flat, which made uneasy
        rarer than charged and rarer at ten lamps than it had been at two. */
-    uneasy:   0.06,             // ~ once a minute. 0 switches moods off entirely.
-    charged:  0.04,             // chance every 3s of the opposite — a long spin
+    uneasy:   0.35,             // ~ every 9s of watchable time. 0 turns moods off.
+    charged:  0.10,             // the opposite — a long spin — every ~30s
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
   };
@@ -70,7 +70,7 @@
   var BOOL = { shake: 1, sound: 1, changer: 1, haptics: 1 };
   var RANGE = { shakeForce: [8, 60], spinSpeed: [0.4, 2.5], packing: [0.8, 1.5],
                 stock: [6, 40], triple: [0.01, 0.5], twins: [0.01, 0.6],
-                uneasy: [0, 0.08], charged: [0, 0.25] };
+                uneasy: [0, 0.60], charged: [0, 0.40] };
   var ENUM  = { rows: [1, 3, 5] };
 
   function warn(m) { try { console.warn('[Lucky Maco] ' + m); } catch (e) {} }
@@ -2392,11 +2392,15 @@
     /* Never in the seconds right after a result — being ambushed while you are
        still reading what happened is not a warning, it is a trap. */
     if (now - settledAt < 2000) return;
+    /* Charged is rolled FIRST. The two share one quiet period, so whichever is
+       rolled first starves the other — with uneasy at 35% against charged's 10%
+       the good mood was firing about never. Rolling the rarer one first gives it
+       its own odds instead of the leftovers. */
+    if (Math.random() < CFG.charged) return setMood('charged');
     /* Flat, because the severity already scales with the belly — charging the
        endgame twice, more often AND more expensive, is not a difficulty curve,
        it is a punishment. */
-    if (lamps > 0 && Math.random() < CFG.uneasy) return setMood('uneasy');
-    if (Math.random() < CFG.charged) setMood('charged');
+    if (lamps > 0 && Math.random() < CFG.uneasy) setMood('uneasy');
   }
   var settledAt = 0;
   moodTimer = setInterval(moodTick, MOOD_TICK);
@@ -2881,12 +2885,19 @@
           step('uneasy', 0.01, (CFG.uneasy * 100).toFixed(0) + '%') + '</td></tr>' +
         '<tr><td>Charged &mdash; per 3s</td><td>' +
           step('charged', 0.01, (CFG.charged * 100).toFixed(0) + '%') + '</td></tr>' +
+        /* The gap between one and the next, not the wait before one starts: a
+           mood runs 3-5s and is followed by 8-25s of enforced quiet, so about 20
+           seconds of every cycle is spoken for before the dice are rolled again.
+           Reporting only the dice made 35% read as every 9s when it is every 29.
+           Seconds of watchable time — rolls are thrown away while the reels
+           spin, during a celebration and for 2s after a result — so wall-clock
+           feels roughly twice this while you are playing. */
         '<tr><td>Uneasy</td><td>' +
-          (CFG.uneasy > 0 ? 'about every ' +
-            Math.round(3 / CFG.uneasy) + 's' : 'off') + '</td></tr>' +
+          (CFG.uneasy > 0 ? '~' + Math.round(3 / CFG.uneasy + 20) + 's' : 'off') +
+          '</td></tr>' +
         '<tr><td>Charged</td><td>' +
-          (CFG.charged > 0 ? 'about every ' +
-            Math.round(3 / CFG.charged) + 's' : 'off') + '</td></tr>' +
+          (CFG.charged > 0 ? '~' + Math.round(3 / CFG.charged + 20) + 's' : 'off') +
+          '</td></tr>' +
       '</table>' +
       '<h3>Machine</h3><table>' +
         '<tr><td>Macoji in play</td><td>' + POOL.length + '</td></tr>' +
