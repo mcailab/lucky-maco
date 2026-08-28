@@ -54,8 +54,11 @@
     shake:    true,             // shake-to-pull on mobile
     shakeForce: 18,             // how hard a shake must be. Measured as CHANGE in
                                 // acceleration, so a still phone reads ~0. Range 8-60.
-    uneasy:   0.015,            // chance per lit Maco, every 3s, that the machine
-                                // turns uneasy. 0 switches moods off entirely.
+    /* Flat, every 3s, whenever anything is lit — the severity already scales
+       with the belly, so the frequency must not. This was left at the old
+       per-lamp figure of 0.015 when the formula went flat, which made uneasy
+       rarer than charged and rarer at ten lamps than it had been at two. */
+    uneasy:   0.06,             // ~ once a minute. 0 switches moods off entirely.
     charged:  0.04,             // chance every 3s of the opposite — a long spin
     set:      null,             // restrict pool, e.g. "fire,joy,wink,grin"
     iconBase: null              // override where the PNGs live
@@ -2874,13 +2877,13 @@
       /* Two rates and, more usefully, what they actually come to — a percent per
          three seconds per lamp means nothing until it is a wait in seconds. */
       '<h3>Mood</h3><table>' +
-        '<tr><td>Uneasy &mdash; per lit Maco</td><td>' +
-          step('uneasy', 0.005, (CFG.uneasy * 100).toFixed(1) + '%') + '</td></tr>' +
-        '<tr><td>Charged</td><td>' +
+        '<tr><td>Uneasy &mdash; per 3s</td><td>' +
+          step('uneasy', 0.01, (CFG.uneasy * 100).toFixed(0) + '%') + '</td></tr>' +
+        '<tr><td>Charged &mdash; per 3s</td><td>' +
           step('charged', 0.01, (CFG.charged * 100).toFixed(0) + '%') + '</td></tr>' +
-        '<tr><td>Uneasy at ' + LAMPS + ' lit</td><td>' +
+        '<tr><td>Uneasy</td><td>' +
           (CFG.uneasy > 0 ? 'about every ' +
-            Math.round(3 / (CFG.uneasy * LAMPS)) + 's' : 'off') + '</td></tr>' +
+            Math.round(3 / CFG.uneasy) + 's' : 'off') + '</td></tr>' +
         '<tr><td>Charged</td><td>' +
           (CFG.charged > 0 ? 'about every ' +
             Math.round(3 / CFG.charged) + 's' : 'off') + '</td></tr>' +
