@@ -827,6 +827,21 @@
     '20%{transform:translate(-4px,2px)}45%{transform:translate(4px,-2px)}',
     '70%{transform:translate(-2px,1px)}}',
     '.cab.judder{animation:judder .3s linear 2}',
+    /* Working itself apart: it starts as a tremble and ends as a real shake, so
+       you can watch them being shaken out rather than just losing them. */
+    '@keyframes comeapart{0%{transform:translate(0,0)}',
+    '15%{transform:translate(-1.5px,1px)}30%{transform:translate(2px,-1px)}',
+    '45%{transform:translate(-3px,2px)}60%{transform:translate(4px,-2px)}',
+    '75%{transform:translate(-6px,3px)}88%{transform:translate(6px,-3px)}',
+    '100%{transform:translate(0,0)}}',
+    '.cab.comeapart{animation:comeapart 1.5s ease-in}',
+    '@keyframes jitterhard{0%,100%{transform:translate(0,0) rotate(0) scale(1.08)}',
+    '20%{transform:translate(-5px,2px) rotate(-14deg) scale(1.08)}',
+    '40%{transform:translate(5px,-2px) rotate(14deg) scale(1.08)}',
+    '60%{transform:translate(-4px,3px) rotate(-10deg) scale(1.08)}',
+    '80%{transform:translate(4px,-3px) rotate(10deg) scale(1.08)}}',
+    '.cell.jitter.hard img{animation:jitterhard .1s linear infinite;',
+    'filter:drop-shadow(0 0 12px rgba(228,87,79,.95))}',
     /* Small win stays inside the reel window: the payline lights and the two
        matching Macoji wiggle in place. No cabinet movement, nothing falls. */
     '@keyframes wiggle{0%,100%{transform:scale(1) rotate(0)}',
@@ -2357,22 +2372,55 @@
     moodNext = moodUntil + rnd(8000, 25000);        // and never the same gap twice
   }
 
-  /* Touching the lever at all is enough. You do not have to complete a pull —
-     the machine is already shaking, and a nudge is what shakes them loose. */
+  /* Touching the lever at all is enough — you do not have to complete a pull.
+     And what follows is not a spin: the machine is coming apart, so it shakes
+     itself out, drops them one at a time, says what it cost, and reloads. There
+     is no reading at the end of it, because you never got a pull. */
   function shakeLoose() {
-    if (mood !== 'uneasy') return 0;
+    if (mood !== 'uneasy') return false;
     var cells = moodCells.slice(), n = cells.length;
     clearMood();
-    restart(cab, 'judder', 'jackpot');
-    buzz([35, 45, 35, 45, 110, 60, 200]);          // the machine coming apart
-    sShakeLoose();
-    for (var i = 0; i < cells.length; i++) {
-      (function (c, d) { setTimeout(function () { dropOne(c); }, d); })(cells[i], i * 130);
+    celebrating = true;                            // no pull lands on top of this
+    lever.classList.add('busy');
+
+    /* 1. it works itself up — 1.4s of building before anything gives */
+    restart(cab, 'comeapart', 'jackpot');
+    for (var i = 0; i < cells.length; i++) cells[i].classList.add('jitter');
+    setTimeout(function () {
+      for (var k = 0; k < cells.length; k++) cells[k].classList.add('hard');
+    }, 450);
+    sUneasy();
+    buzz([40, 60, 60, 60, 90, 50, 140, 50, 260]);
+
+    /* 2. they come loose one at a time, slowly enough to watch */
+    var FIRST = 1400, GAP = 420;
+    for (i = 0; i < cells.length; i++) {
+      (function (c, d) {
+        setTimeout(function () {
+          c.classList.remove('jitter', 'hard');
+          sShakeLoose();
+          buzz([60, 40, 120]);
+          dropOne(c);
+        }, d);
+      })(cells[i], FIRST + i * GAP);
     }
+    var last = FIRST + (n - 1) * GAP;
+
+    /* 3. the bill */
     var lost = Math.min(n, lamps);
-    if (lost > 0) { lamps -= lost; drawLamps(); saveLamps(); }
-    setTimeout(function () { toast(lostLine(lost), 2400); }, 620);
-    return n;
+    setTimeout(function () {
+      if (lost > 0) { lamps -= lost; drawLamps(); saveLamps(); }
+      toast(lostLine(lost), 2400);
+    }, last + 700);
+
+    /* 4. and the machine puts itself back together, ready to go again */
+    setTimeout(function () {
+      for (var k = 0; k < cells.length; k++) cells[k].classList.remove('jitter', 'hard');
+      fillIn();                                    // hopper pours, reels drop from the top
+      celebrating = false;
+      lever.classList.remove('busy');
+    }, last + 1500);
+    return true;
   }
   function moodTick() {
     var now = Date.now();
@@ -2445,6 +2493,11 @@
   function spin(force) {
     if (spinning || granting || celebrating) return;
     pulledOnce = true; lever.classList.remove('hint');
+    /* Before anything else. A click, the space bar, a shake or the API never
+       drag the arm, so the nudge handler never sees them — they arrive here.
+       And this is where the pull ends: the machine is coming apart, so there is
+       no draw, no reels and no reading at the end of it. */
+    if (shakeLoose()) return;
     spinning = true;
     lever.classList.add('busy');
     $('.share').classList.add('off');
@@ -2456,10 +2509,7 @@
     var reloading = dumpBox.children.length > 0 ||
                     $('.window').classList.contains('emptied');
     restock();                                   // sweep the floor, reload the machine
-    /* A click, the space bar, a shake, the API — none of them drag the arm, so
-       the nudge handler never sees them. They pay here instead. */
     var pulledInto = mood;
-    shakeLoose();
     clearMood();
     sClunk(); hPull();
     var res = draw(force);
